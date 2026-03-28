@@ -2,14 +2,19 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   LayoutDashboard, 
   Calendar, 
+  History, 
   Settings, 
   PlusCircle, 
   Trash2, 
   Download, 
   Upload, 
   AlertTriangle,
+  Moon,
+  Sun,
   Search,
   CheckCircle2,
+  XCircle,
+  Menu,
   X,
   Leaf
 } from 'lucide-react';
@@ -46,6 +51,7 @@ export default function App() {
   const [db, setDb] = useState<Prenotazione[]>([]);
   const [config, setConfig] = useState<Config>(caricaConfig());
   const [activeTab, setActiveTab] = useState<'dashboard' | 'prenota' | 'attive' | 'storico' | 'settings'>('prenota');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   // Form State
@@ -208,62 +214,76 @@ export default function App() {
 
   return (
     <div className={cn(
-      "min-h-screen transition-colors duration-300 bg-gray-50 text-gray-900"
+      "min-h-screen flex transition-colors duration-300 bg-gray-50 text-gray-900"
     )}>
-      {/* Simple Top Nav */}
-      <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center">
-              <Leaf className="text-white w-5 h-5" />
+      {/* Sidebar */}
+      <aside className={cn(
+        "fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out border-r bg-white border-gray-200",
+        sidebarOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
+        <div className="p-6 flex flex-col h-full">
+          <div className="flex items-center gap-3 mb-10">
+            <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-600/20">
+              <Leaf className="text-white w-6 h-6" />
             </div>
-            <span className="font-bold text-sm">Offida Ritiri</span>
+            <div>
+              <h1 className="font-bold text-lg leading-tight">Comune di Offida</h1>
+              <p className="text-[10px] uppercase tracking-widest opacity-50 font-semibold">Gestione Ritiri</p>
+            </div>
           </div>
-          
-          <div className="flex gap-1">
-            <button 
-              onClick={() => setActiveTab('prenota')}
-              className={cn(
-                "px-4 py-2 rounded-lg text-sm font-bold transition-all",
-                activeTab === 'prenota' ? "bg-emerald-600 text-white" : "text-gray-500 hover:bg-gray-100"
-              )}
-            >
-              Nuova Prenotazione
-            </button>
-            <button 
-              onClick={() => setActiveTab('attive')}
-              className={cn(
-                "px-4 py-2 rounded-lg text-sm font-bold transition-all",
-                activeTab === 'attive' ? "bg-emerald-600 text-white" : "text-gray-500 hover:bg-gray-100"
-              )}
-            >
-              Ritiri Attivi
-            </button>
-            <button 
-              onClick={() => setActiveTab('dashboard')}
-              className={cn(
-                "px-4 py-2 rounded-lg text-sm font-bold transition-all",
-                activeTab === 'dashboard' ? "bg-emerald-600 text-white" : "text-gray-500 hover:bg-gray-100"
-              )}
-            >
-              Statistiche
-            </button>
-            <button 
-              onClick={() => setActiveTab('settings')}
-              className={cn(
-                "px-4 py-2 rounded-lg text-sm font-bold transition-all",
-                activeTab === 'settings' ? "bg-emerald-600 text-white" : "text-gray-500 hover:bg-gray-100"
-              )}
-            >
-              Impostazioni
-            </button>
-          </div>
+
+          <nav className="space-y-2 flex-1">
+            <SidebarItem 
+              icon={<LayoutDashboard size={20} />} 
+              label="Dashboard" 
+              active={activeTab === 'dashboard'} 
+              onClick={() => setActiveTab('dashboard')} 
+            />
+            <SidebarItem 
+              icon={<PlusCircle size={20} />} 
+              label="Nuova Prenotazione" 
+              active={activeTab === 'prenota'} 
+              onClick={() => setActiveTab('prenota')} 
+            />
+            <SidebarItem 
+              icon={<Calendar size={20} />} 
+              label="Ritiri Attivi" 
+              active={activeTab === 'attive'} 
+              onClick={() => setActiveTab('attive')} 
+            />
+            <SidebarItem 
+              icon={<History size={20} />} 
+              label="Storico" 
+              active={activeTab === 'storico'} 
+              onClick={() => setActiveTab('storico')} 
+            />
+            <SidebarItem 
+              icon={<Settings size={20} />} 
+              label="Impostazioni" 
+              active={activeTab === 'settings'} 
+              onClick={() => setActiveTab('settings')} 
+            />
+          </nav>
         </div>
-      </nav>
+      </aside>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto p-6">
-        <AnimatePresence mode="wait">
+      <main className={cn(
+        "flex-1 transition-all duration-300",
+        sidebarOpen ? "ml-64" : "ml-0"
+      )}>
+        <div className="p-6 max-w-7xl mx-auto space-y-8">
+          {/* Floating Menu Button when sidebar is closed */}
+          {!sidebarOpen && (
+            <button 
+              onClick={() => setSidebarOpen(true)} 
+              className="fixed top-6 left-6 z-40 p-3 bg-white border border-gray-200 rounded-xl shadow-lg hover:bg-gray-50 transition-all"
+            >
+              <Menu size={24} />
+            </button>
+          )}
+          
+          <AnimatePresence mode="wait">
             {activeTab === 'dashboard' && (
               <motion.div 
                 key="dashboard"
@@ -665,31 +685,6 @@ export default function App() {
                   "p-8 rounded-[32px] border bg-white border-gray-200 shadow-sm"
                 )}>
                   <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-                    <Trash2 className="text-red-600" />
-                    Manutenzione Database
-                  </h3>
-                  <div className="p-6 rounded-2xl bg-red-50 border border-red-100">
-                    <p className="text-sm text-red-800 mb-4 font-medium">
-                      Attenzione: questa azione cancellerà permanentemente tutte le prenotazioni (attive e storiche).
-                    </p>
-                    <button 
-                      onClick={() => {
-                        if (confirm("Sei sicuro di voler cancellare TUTTE le prenotazioni? L'azione è irreversibile.")) {
-                          setDb([]);
-                          localStorage.removeItem('prenotazioni_offida');
-                        }
-                      }}
-                      className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-red-600/20"
-                    >
-                      Svuota Database
-                    </button>
-                  </div>
-                </div>
-
-                <div className={cn(
-                  "p-8 rounded-[32px] border bg-white border-gray-200 shadow-sm"
-                )}>
-                  <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
                     <AlertTriangle className="text-orange-600" />
                     Materiali Vietati
                   </h3>
@@ -729,8 +724,26 @@ export default function App() {
               </motion.div>
             )}
           </AnimatePresence>
+        </div>
       </main>
     </div>
+  );
+}
+
+function SidebarItem({ icon, label, active, onClick }: { icon: React.ReactNode, label: string, active?: boolean, onClick: () => void }) {
+  return (
+    <button 
+      onClick={onClick}
+      className={cn(
+        "w-full flex items-center gap-3 p-3 rounded-xl transition-all font-medium",
+        active 
+          ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/20" 
+          : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+      )}
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
   );
 }
 
