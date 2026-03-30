@@ -29,7 +29,7 @@ import {
   contaPrenotazioni,
   LIMITI
 } from './services/engine';
-import { caricaDatabase, salvaDatabase, caricaConfig, salvaConfig } from './services/storage';
+import { caricaDatabase, salvaDatabase, caricaConfig, salvaConfig, parseCSV } from './services/storage';
 import { generaDocumentoWord } from './services/wordService';
 import { importaDaDocx } from './services/importService';
 import { Prenotazione, TipologiaRifiuto, Config } from './types';
@@ -175,6 +175,25 @@ export default function App() {
       console.error(error);
       alert("Errore durante l'importazione.");
     }
+  };
+
+  const handleImportCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      try {
+        const nuove = parseCSV(content);
+        setDb([...db, ...nuove]);
+        alert(`Importati ${nuove.length} record dal CSV con successo.`);
+      } catch (error) {
+        console.error(error);
+        alert("Errore durante l'importazione del CSV.");
+      }
+    };
+    reader.readAsText(file);
   };
 
   const statsData = useMemo(() => {
@@ -489,6 +508,10 @@ export default function App() {
                   </div>
                   {activeTab === 'attive' && (
                     <div className="flex gap-2">
+                      <label className="flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded-xl hover:bg-slate-700 transition-all shadow-lg shadow-slate-600/20 font-semibold text-sm cursor-pointer">
+                        <Upload size={16} /> Importa CSV
+                        <input type="file" accept=".csv" className="hidden" onChange={handleImportCSV} />
+                      </label>
                       <label className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20 font-semibold text-sm cursor-pointer">
                         <Upload size={16} /> Importa Word
                         <input type="file" accept=".docx" className="hidden" onChange={handleImport} />
