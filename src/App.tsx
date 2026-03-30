@@ -103,6 +103,12 @@ export default function App() {
     setDb(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
   };
 
+  const getCapacityStatus = (count: number, limit: number) => {
+    if (count >= limit) return { color: 'text-red-600', label: 'PIENO', dot: 'bg-red-600' };
+    if (count >= limit * 0.8) return { color: 'text-yellow-600', label: 'QUASI PIENO', dot: 'bg-yellow-600' };
+    return { color: 'text-green-600', label: 'DISPONIBILE', dot: 'bg-green-600' };
+  };
+
   const handleAddPrenotazione = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -233,21 +239,21 @@ export default function App() {
 
   return (
     <div className={cn(
-      "min-h-screen flex transition-colors duration-300 bg-gray-50 text-gray-900"
+      "min-h-screen flex transition-colors duration-300 bg-slate-50 text-slate-900"
     )}>
       {/* Sidebar */}
       <aside className={cn(
-        "fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out border-r bg-white border-gray-200",
+        "fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out border-r bg-white border-slate-200 shadow-xl",
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
-        <div className="p-6 flex flex-col h-full">
+        <div className="p-6 flex flex-col h-full bg-gradient-to-b from-white to-slate-50">
           <div className="flex items-center gap-3 mb-10">
-            <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-600/20">
+            <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-600/30">
               <Leaf className="text-white w-6 h-6" />
             </div>
             <div>
-              <h1 className="font-bold text-lg leading-tight">Comune di Offida</h1>
-              <p className="text-[10px] uppercase tracking-widest opacity-50 font-semibold">Gestione Ritiri</p>
+              <h1 className="font-bold text-lg leading-tight text-slate-800">Comune di Offida</h1>
+              <p className="text-[10px] uppercase tracking-widest text-emerald-600 font-bold">Gestione Ritiri</p>
             </div>
           </div>
 
@@ -288,15 +294,15 @@ export default function App() {
 
       {/* Main Content */}
       <main className={cn(
-        "flex-1 transition-all duration-300",
+        "flex-1 transition-all duration-300 bg-slate-50/50",
         sidebarOpen ? "ml-64" : "ml-0"
       )}>
-        <div className="p-6 max-w-7xl mx-auto space-y-8">
+        <div className="p-8 max-w-7xl mx-auto space-y-10">
           {/* Floating Menu Button when sidebar is closed */}
           {!sidebarOpen && (
             <button 
               onClick={() => setSidebarOpen(true)} 
-              className="fixed top-6 left-6 z-40 p-3 bg-white border border-gray-200 rounded-xl shadow-lg hover:bg-gray-50 transition-all"
+              className="fixed top-6 left-6 z-40 p-3 bg-white border border-slate-200 rounded-2xl shadow-xl hover:bg-slate-50 transition-all text-emerald-600"
             >
               <Menu size={24} />
             </button>
@@ -314,34 +320,37 @@ export default function App() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                   {/* Stats Card */}
                   <div className={cn(
-                    "lg:col-span-2 p-8 rounded-[32px] border relative overflow-hidden bg-white border-gray-200 shadow-sm"
+                    "lg:col-span-2 p-8 rounded-[40px] border relative overflow-hidden bg-white border-slate-200 shadow-sm hover:shadow-md transition-shadow"
                   )}>
                     <div className="relative z-10">
-                      <h2 className="text-3xl font-bold tracking-tight mb-2">Comune di Offida - Analytics</h2>
-                      <p className="text-sm opacity-60 mb-8 max-w-md">Monitoraggio in tempo reale della capacità di smaltimento e delle prenotazioni attive.</p>
+                      <h2 className="text-3xl font-black tracking-tight mb-2 text-slate-800">Comune di Offida - Analytics</h2>
+                      <p className="text-sm font-medium text-slate-400 mb-8 max-w-md">Monitoraggio in tempo reale della capacità di smaltimento e delle prenotazioni attive.</p>
                       
                       <div className="h-[300px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={chartData}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
-                            <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, opacity: 0.5 }} />
-                            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, opacity: 0.5 }} />
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.03)" />
+                            <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }} />
+                            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }} />
                             <Tooltip 
+                              cursor={{ fill: 'rgba(0,0,0,0.02)' }}
                               contentStyle={{ 
                                 backgroundColor: '#fff', 
-                                border: 'none', 
-                                borderRadius: '12px',
-                                boxShadow: '0 10px 30px rgba(0,0,0,0.1)'
+                                border: '1px solid #e2e8f0', 
+                                borderRadius: '20px',
+                                boxShadow: '0 20px 50px rgba(0,0,0,0.1)',
+                                padding: '12px'
                               }} 
                             />
-                            <Bar dataKey="Ingombranti" fill="#2563eb" radius={[4, 4, 0, 0]} />
-                            <Bar dataKey="Potature" fill="#059669" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="Ingombranti" fill="#2563eb" radius={[6, 6, 0, 0]} />
+                            <Bar dataKey="Potature" fill="#10b981" radius={[6, 6, 0, 0]} />
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
                     </div>
                     {/* Decorative background glow */}
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-600/5 blur-[100px] rounded-full -mr-32 -mt-32" />
+                    <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-600/5 blur-[120px] rounded-full -mr-40 -mt-40" />
+                    <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-600/5 blur-[100px] rounded-full -ml-32 -mb-32" />
                   </div>
 
                   {/* Quick Info */}
@@ -394,14 +403,16 @@ export default function App() {
                 className="max-w-3xl mx-auto"
               >
                 <div className={cn(
-                  "p-10 rounded-[40px] border bg-white border-gray-200 shadow-xl"
+                  "p-10 rounded-[40px] border bg-white border-slate-200 shadow-2xl relative overflow-hidden"
                 )}>
-                  <h2 className="text-3xl font-bold mb-8 flex items-center gap-3">
-                    <PlusCircle className="text-emerald-600" />
+                  <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-600 to-emerald-600" />
+                  
+                  <h2 className="text-3xl font-black mb-8 flex items-center gap-3 text-slate-800">
+                    <PlusCircle className="text-emerald-600" size={32} />
                     Nuova Prenotazione
                   </h2>
 
-                  <form onSubmit={handleAddPrenotazione} className="space-y-6">
+                  <form onSubmit={handleAddPrenotazione} className="space-y-8">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <InputGroup label="Nominativo Utente" value={formData.utente} onChange={v => setFormData({...formData, utente: v})} placeholder="Mario Rossi" required />
                       <InputGroup label="Telefono" value={formData.telefono} onChange={v => setFormData({...formData, telefono: v})} placeholder="333 1234567" required />
@@ -411,21 +422,21 @@ export default function App() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2">
-                        <label className="text-xs font-bold uppercase tracking-wider opacity-50 ml-1">Tipologia Rifiuto</label>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Tipologia Rifiuto</label>
                         <div className="flex gap-2">
                           {[
-                            { id: 'Ingombranti', color: 'bg-blue-600 border-blue-600 shadow-blue-600/20' },
-                            { id: 'Potature', color: 'bg-emerald-600 border-emerald-600 shadow-emerald-600/20' }
+                            { id: 'Ingombranti', color: 'bg-blue-600 border-blue-700 shadow-blue-600/30' },
+                            { id: 'Potature', color: 'bg-emerald-600 border-emerald-700 shadow-emerald-600/30' }
                           ].map((t) => (
                             <button
                               key={t.id}
                               type="button"
                               onClick={() => setFormData({...formData, tipologia: t.id as TipologiaRifiuto})}
                               className={cn(
-                                "flex-1 py-3 rounded-xl font-semibold transition-all border",
+                                "flex-1 py-4 rounded-2xl font-bold transition-all border text-sm",
                                 formData.tipologia === t.id 
-                                  ? `${t.color} text-white shadow-lg` 
-                                  : "bg-gray-100 border-gray-200 hover:bg-gray-200 text-gray-600"
+                                  ? `${t.color} text-white shadow-lg scale-[1.02]` 
+                                  : "bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-500"
                               )}
                             >
                               {t.id}
@@ -435,32 +446,37 @@ export default function App() {
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-xs font-bold uppercase tracking-wider opacity-50 ml-1">Data Ritiro</label>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Data Ritiro</label>
                         <select 
                           value={formData.dataRitiro}
                           onChange={(e) => setFormData({...formData, dataRitiro: e.target.value})}
                           required
                           className={cn(
-                            "w-full p-3 rounded-xl border appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-600/50 bg-gray-100 border-gray-200"
+                            "w-full p-4 rounded-2xl border appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-600/20 transition-all bg-slate-50 border-slate-200 text-slate-700 font-medium"
                           )}
                         >
                           <option value="">Seleziona una data...</option>
                           {dateDisponibili.map(d => {
                             const count = d === "Data Extra" ? 0 : contaPrenotazioni(db, d, formData.tipologia);
                             const limite = LIMITI[formData.tipologia];
-                            const isFull = d !== "Data Extra" && count >= limite;
+                            const status = getCapacityStatus(count, limite);
                             return (
-                              <option key={d} value={d}>
-                                {d} {d !== "Data Extra" ? `(${count}/${limite})` : ''} {isFull ? '- PIENO' : ''}
+                              <option key={d} value={d} className={d !== "Data Extra" ? status.color : ""}>
+                                {d} {d !== "Data Extra" ? `(${count}/${limite}) - ${status.label}` : ''}
                               </option>
                             );
                           })}
                         </select>
+                        <div className="flex gap-4 mt-2 text-[10px] font-bold uppercase tracking-wider opacity-60">
+                          <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-600"></span> Disponibile</div>
+                          <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-600"></span> Quasi Pieno</div>
+                          <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-600"></span> Pieno</div>
+                        </div>
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-wider opacity-50 ml-1 flex justify-between">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex justify-between">
                         Materiali (uno per riga)
                         {alertVietati && <span className="text-orange-600 flex items-center gap-1"><AlertTriangle size={12} /> Materiale non conforme!</span>}
                       </label>
@@ -471,8 +487,8 @@ export default function App() {
                         rows={4}
                         required
                         className={cn(
-                          "w-full p-4 rounded-2xl border focus:outline-none focus:ring-2 transition-all bg-gray-100 border-gray-200",
-                          alertVietati ? "border-orange-600/50 ring-orange-600/20" : "focus:ring-emerald-600/50"
+                          "w-full p-4 rounded-2xl border focus:outline-none focus:ring-2 transition-all bg-slate-50 border-slate-200 text-slate-700 placeholder:text-slate-300 font-medium",
+                          alertVietati ? "border-orange-600/50 ring-orange-600/20" : "focus:ring-emerald-600/20"
                         )}
                       />
                     </div>
@@ -482,8 +498,8 @@ export default function App() {
                     <button 
                       type="submit"
                       className={cn(
-                        "w-full py-5 text-white font-bold rounded-2xl transition-all shadow-xl flex items-center justify-center gap-2",
-                        formData.tipologia === 'Ingombranti' ? "bg-blue-600 hover:bg-blue-700 shadow-blue-600/20" : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20"
+                        "w-full py-5 text-white font-black uppercase tracking-widest rounded-2xl transition-all shadow-2xl flex items-center justify-center gap-3 text-sm",
+                        formData.tipologia === 'Ingombranti' ? "bg-blue-600 hover:bg-blue-700 shadow-blue-600/30" : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/30"
                       )}
                     >
                       <CheckCircle2 size={20} />
@@ -508,32 +524,14 @@ export default function App() {
                   </div>
                   {activeTab === 'attive' && (
                     <div className="flex gap-2">
-                      <label className="flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded-xl hover:bg-slate-700 transition-all shadow-lg shadow-slate-600/20 font-semibold text-sm cursor-pointer">
+                      <label className="flex items-center gap-2 px-4 py-2 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-all shadow-lg shadow-slate-700/30 font-bold text-sm cursor-pointer border border-slate-600">
                         <Upload size={16} /> Importa CSV
                         <input type="file" accept=".csv" className="hidden" onChange={handleImportCSV} />
                       </label>
-                      <label className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20 font-semibold text-sm cursor-pointer">
+                      <label className="flex items-center gap-2 px-4 py-2 bg-indigo-700 text-white rounded-xl hover:bg-indigo-800 transition-all shadow-lg shadow-indigo-700/30 font-bold text-sm cursor-pointer border border-indigo-600">
                         <Upload size={16} /> Importa Word
                         <input type="file" accept=".docx" className="hidden" onChange={handleImport} />
                       </label>
-                      <button 
-                        onClick={() => {
-                          const data = prompt("Inserisci la data (DD/MM/YYYY):");
-                          if (data) generaDocumentoWord(attive.filter(p => p.dataRitiro === data && p.tipologia === 'Ingombranti'), 'Ingombranti', data);
-                        }}
-                        className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-xl hover:bg-amber-700 transition-all shadow-lg shadow-amber-600/20 font-semibold text-sm"
-                      >
-                        <Download size={16} /> Export Ingombranti
-                      </button>
-                      <button 
-                        onClick={() => {
-                          const data = prompt("Inserisci la data (DD/MM/YYYY):");
-                          if (data) generaDocumentoWord(attive.filter(p => p.dataRitiro === data && p.tipologia === 'Potature'), 'Potature', data);
-                        }}
-                        className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-xl hover:bg-amber-700 transition-all shadow-lg shadow-amber-600/20 font-semibold text-sm"
-                      >
-                        <Download size={16} /> Export Potature
-                      </button>
                     </div>
                   )}
                 </div>
@@ -552,10 +550,13 @@ export default function App() {
                             <div className="flex justify-between items-center">
                               <h4 className={cn(
                                 "text-sm font-bold uppercase tracking-widest flex items-center gap-2",
-                                tipo === 'Ingombranti' ? "text-blue-600" : "text-emerald-600"
+                                tipo === 'Ingombranti' ? "text-blue-700" : "text-emerald-700"
                               )}>
                                 {tipo === 'Ingombranti' ? <LayoutDashboard size={16} /> : <Leaf size={16} />}
-                                {tipo} ({list.length}/{LIMITI[tipo as TipologiaRifiuto]})
+                                {tipo} - {data} ({list.length}/{LIMITI[tipo as TipologiaRifiuto]})
+                                {data !== "Data Extra" && (
+                                  <span className={cn("w-2.5 h-2.5 rounded-full shadow-sm", getCapacityStatus(list.length, LIMITI[tipo as TipologiaRifiuto]).dot)} />
+                                )}
                               </h4>
                               <button 
                                 onClick={() => generaDocumentoWord(list, tipo as TipologiaRifiuto, data)}
@@ -569,12 +570,12 @@ export default function App() {
                             </div>
 
                             <div className={cn(
-                              "overflow-x-auto rounded-3xl border bg-white border-gray-200 shadow-sm"
+                              "overflow-x-auto rounded-3xl border bg-white border-slate-200 shadow-md"
                             )}>
                               <table className="w-full text-left border-collapse">
                                 <thead>
                                   <tr className={cn(
-                                    "border-b text-[10px] uppercase tracking-widest font-bold opacity-50 border-gray-100"
+                                    "border-b text-[10px] uppercase tracking-widest font-bold text-slate-400 border-slate-100 bg-slate-50/50"
                                   )}>
                                     <th className="p-4">Utente</th>
                                     <th className="p-4">Via</th>
@@ -587,27 +588,27 @@ export default function App() {
                                 <tbody>
                                   {list.map((p) => (
                                     <tr key={p.id} className={cn(
-                                      "border-b last:border-0 group transition-colors border-gray-50 hover:bg-gray-50/50"
+                                      "border-b last:border-0 group transition-colors border-slate-50 hover:bg-slate-50/80"
                                     )}>
                                       <td className="p-2">
                                         <input 
                                           value={p.utente} 
                                           onChange={(e) => handleUpdateField(p.id, 'utente', e.target.value)}
-                                          className="w-full bg-transparent p-2 rounded focus:bg-emerald-600/5 focus:outline-none focus:ring-1 focus:ring-emerald-600/30"
+                                          className="w-full bg-transparent p-2 rounded font-medium focus:bg-white focus:shadow-sm focus:outline-none focus:ring-1 focus:ring-emerald-600/30"
                                         />
                                       </td>
                                       <td className="p-2">
                                         <input 
                                           value={p.via} 
                                           onChange={(e) => handleUpdateField(p.id, 'via', e.target.value)}
-                                          className="w-full bg-transparent p-2 rounded focus:bg-emerald-600/5 focus:outline-none focus:ring-1 focus:ring-emerald-600/30"
+                                          className="w-full bg-transparent p-2 rounded text-slate-600 focus:bg-white focus:shadow-sm focus:outline-none focus:ring-1 focus:ring-emerald-600/30"
                                         />
                                       </td>
                                       <td className="p-2">
                                         <input 
                                           value={p.telefono} 
                                           onChange={(e) => handleUpdateField(p.id, 'telefono', e.target.value)}
-                                          className="w-full bg-transparent p-2 rounded focus:bg-emerald-600/5 focus:outline-none focus:ring-1 focus:ring-emerald-600/30"
+                                          className="w-full bg-transparent p-2 rounded text-slate-600 focus:bg-white focus:shadow-sm focus:outline-none focus:ring-1 focus:ring-emerald-600/30"
                                         />
                                       </td>
                                       <td className="p-2">
@@ -615,20 +616,20 @@ export default function App() {
                                           value={p.materiali} 
                                           onChange={(e) => handleUpdateField(p.id, 'materiali', e.target.value)}
                                           rows={1}
-                                          className="w-full bg-transparent p-2 rounded focus:bg-emerald-600/5 focus:outline-none focus:ring-1 focus:ring-emerald-600/30 resize-none"
+                                          className="w-full bg-transparent p-2 rounded text-slate-600 focus:bg-white focus:shadow-sm focus:outline-none focus:ring-1 focus:ring-emerald-600/30 resize-none"
                                         />
                                       </td>
                                       <td className="p-2">
                                         <input 
                                           value={p.note} 
                                           onChange={(e) => handleUpdateField(p.id, 'note', e.target.value)}
-                                          className="w-full bg-transparent p-2 rounded focus:bg-emerald-600/5 focus:outline-none focus:ring-1 focus:ring-emerald-600/30"
+                                          className="w-full bg-transparent p-2 rounded text-slate-500 italic focus:bg-white focus:shadow-sm focus:outline-none focus:ring-1 focus:ring-emerald-600/30"
                                         />
                                       </td>
                                       <td className="p-4">
                                         <button 
                                           onClick={() => handleDelete(p.id)}
-                                          className="opacity-0 group-hover:opacity-100 p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                                          className="opacity-0 group-hover:opacity-100 p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all"
                                         >
                                           <Trash2 size={16} />
                                         </button>
@@ -646,10 +647,10 @@ export default function App() {
 
                   {Object.keys(groupedPrenotazioni).length === 0 && (
                     <div className={cn(
-                      "p-20 rounded-[32px] border border-dashed flex flex-col items-center justify-center opacity-30 border-gray-300"
+                      "p-20 rounded-[40px] border border-dashed flex flex-col items-center justify-center bg-white/50 border-slate-300 text-slate-400"
                     )}>
-                      <Search size={48} className="mb-4" />
-                      <p className="text-xl font-medium">Nessun record trovato</p>
+                      <Search size={64} className="mb-6 opacity-20" />
+                      <p className="text-2xl font-black uppercase tracking-widest opacity-40">Nessun record trovato</p>
                     </div>
                   )}
                 </div>
@@ -664,20 +665,20 @@ export default function App() {
                 className="max-w-2xl space-y-8"
               >
                 <div className={cn(
-                  "p-8 rounded-[32px] border bg-white border-gray-200 shadow-sm"
+                  "p-8 rounded-[40px] border bg-white border-slate-200 shadow-xl"
                 )}>
-                  <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-                    <Calendar className="text-emerald-600" />
+                  <h3 className="text-xl font-black mb-6 flex items-center gap-3 text-slate-800">
+                    <Calendar className="text-emerald-600" size={24} />
                     Date Extra Straordinarie
                   </h3>
-                  <div className="space-y-4">
-                    <div className="flex gap-2">
+                  <div className="space-y-6">
+                    <div className="flex gap-3">
                       <input 
                         type="text" 
                         placeholder="DD/MM/YYYY" 
                         id="new-extra-date"
                         className={cn(
-                          "flex-1 p-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-emerald-600/50 bg-gray-100 border-gray-200"
+                          "flex-1 p-4 rounded-2xl border focus:outline-none focus:ring-2 focus:ring-emerald-600/20 transition-all bg-slate-50 border-slate-200 text-slate-700 font-medium"
                         )}
                       />
                       <button 
@@ -688,16 +689,16 @@ export default function App() {
                             input.value = '';
                           }
                         }}
-                        className="px-6 bg-emerald-600 text-white font-bold rounded-xl"
+                        className="px-8 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg shadow-emerald-600/30 text-xs"
                       >
                         Aggiungi
                       </button>
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-3">
                       {config.dateExtra.map(d => (
-                        <span key={d} className="px-3 py-1 bg-emerald-600/10 text-emerald-600 rounded-lg text-sm font-bold flex items-center gap-2">
+                        <span key={d} className="px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm">
                           {d}
-                          <X size={14} className="cursor-pointer" onClick={() => setConfig({...config, dateExtra: config.dateExtra.filter(x => x !== d)})} />
+                          <X size={16} className="cursor-pointer hover:text-red-500 transition-colors" onClick={() => setConfig({...config, dateExtra: config.dateExtra.filter(x => x !== d)})} />
                         </span>
                       ))}
                     </div>
@@ -705,20 +706,20 @@ export default function App() {
                 </div>
 
                 <div className={cn(
-                  "p-8 rounded-[32px] border bg-white border-gray-200 shadow-sm"
+                  "p-8 rounded-[40px] border bg-white border-slate-200 shadow-xl"
                 )}>
-                  <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-                    <AlertTriangle className="text-orange-600" />
+                  <h3 className="text-xl font-black mb-6 flex items-center gap-3 text-slate-800">
+                    <AlertTriangle className="text-orange-600" size={24} />
                     Materiali Vietati
                   </h3>
-                  <div className="space-y-4">
-                    <div className="flex gap-2">
+                  <div className="space-y-6">
+                    <div className="flex gap-3">
                       <input 
                         type="text" 
                         placeholder="Nome materiale..." 
                         id="new-forbidden"
                         className={cn(
-                          "flex-1 p-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-emerald-600/50 bg-gray-100 border-gray-200"
+                          "flex-1 p-4 rounded-2xl border focus:outline-none focus:ring-2 focus:ring-emerald-600/20 transition-all bg-slate-50 border-slate-200 text-slate-700 font-medium"
                         )}
                       />
                       <button 
@@ -729,16 +730,16 @@ export default function App() {
                             input.value = '';
                           }
                         }}
-                        className="px-6 bg-emerald-600 text-white font-bold rounded-xl"
+                        className="px-8 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg shadow-emerald-600/30 text-xs"
                       >
                         Aggiungi
                       </button>
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-3">
                       {config.materialiVietati.map(m => (
-                        <span key={m} className="px-3 py-1 bg-orange-600/10 text-orange-600 rounded-lg text-sm font-bold flex items-center gap-2">
+                        <span key={m} className="px-4 py-2 bg-orange-50 text-orange-700 border border-orange-100 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm">
                           {m}
-                          <X size={14} className="cursor-pointer" onClick={() => setConfig({...config, materialiVietati: config.materialiVietati.filter(x => x !== m)})} />
+                          <X size={16} className="cursor-pointer hover:text-red-500 transition-colors" onClick={() => setConfig({...config, materialiVietati: config.materialiVietati.filter(x => x !== m)})} />
                         </span>
                       ))}
                     </div>
@@ -758,10 +759,10 @@ function SidebarItem({ icon, label, active, onClick }: { icon: React.ReactNode, 
     <button 
       onClick={onClick}
       className={cn(
-        "w-full flex items-center gap-3 p-3 rounded-xl transition-all font-medium",
+        "w-full flex items-center gap-3 p-3 rounded-xl transition-all font-bold text-sm",
         active 
-          ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/20" 
-          : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+          ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/30 scale-[1.02]" 
+          : "text-slate-500 hover:bg-emerald-50 hover:text-emerald-700"
       )}
     >
       {icon}
@@ -772,20 +773,20 @@ function SidebarItem({ icon, label, active, onClick }: { icon: React.ReactNode, 
 
 function StatCard({ title, value, icon, color }: { title: string, value: string, icon: React.ReactNode, color: 'emerald' | 'blue' | 'orange' }) {
   const colors = {
-    emerald: "bg-emerald-600/10 text-emerald-600 border-emerald-600/20",
-    blue: "bg-blue-600/10 text-blue-600 border-blue-600/20",
-    orange: "bg-orange-600/10 text-orange-600 border-orange-600/20"
+    emerald: "bg-emerald-600/10 text-emerald-600 border-emerald-600/20 shadow-emerald-600/5",
+    blue: "bg-blue-600/10 text-blue-600 border-blue-600/20 shadow-blue-600/5",
+    orange: "bg-orange-600/10 text-orange-600 border-orange-600/20 shadow-orange-600/5"
   };
 
   return (
     <div className={cn(
-      "p-6 rounded-[32px] border bg-white border-gray-200 shadow-sm"
+      "p-6 rounded-[32px] border bg-white border-slate-200 shadow-sm hover:shadow-md transition-shadow"
     )}>
-      <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center mb-4 border", colors[color])}>
-        {React.cloneElement(icon as React.ReactElement, { size: 20 })}
+      <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center mb-4 border shadow-inner", colors[color])}>
+        {React.cloneElement(icon as React.ReactElement, { size: 24 })}
       </div>
-      <p className="text-xs font-bold uppercase tracking-widest opacity-40 mb-1">{title}</p>
-      <p className="text-2xl font-bold">{value}</p>
+      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{title}</p>
+      <p className="text-3xl font-black text-slate-800">{value}</p>
     </div>
   );
 }
@@ -793,7 +794,7 @@ function StatCard({ title, value, icon, color }: { title: string, value: string,
 function InputGroup({ label, value, onChange, placeholder, required, type = "text" }: { label: string, value: string, onChange: (v: string) => void, placeholder: string, required?: boolean, type?: string }) {
   return (
     <div className="space-y-2">
-      <label className="text-xs font-bold uppercase tracking-wider opacity-50 ml-1">{label}</label>
+      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{label}</label>
       <input 
         type={type}
         value={value}
@@ -801,7 +802,7 @@ function InputGroup({ label, value, onChange, placeholder, required, type = "tex
         placeholder={placeholder}
         required={required}
         className={cn(
-          "w-full p-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-emerald-600/50 transition-all bg-gray-100 border-gray-200"
+          "w-full p-3.5 rounded-2xl border focus:outline-none focus:ring-2 focus:ring-emerald-600/20 transition-all bg-slate-50 border-slate-200 text-slate-700 placeholder:text-slate-300 font-medium"
         )}
       />
     </div>
