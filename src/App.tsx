@@ -106,7 +106,7 @@ export default function App() {
   const getCapacityStatus = (count: number, limit: number) => {
     if (count >= limit) return { color: 'text-red-600', label: 'PIENO', dot: 'bg-red-600' };
     if (count >= limit * 0.8) return { color: 'text-yellow-600', label: 'QUASI PIENO', dot: 'bg-yellow-600' };
-    return { color: 'text-green-600', label: 'DISPONIBILE', dot: 'bg-green-600' };
+    return { color: 'text-green-600', label: 'LIBERO', dot: 'bg-green-600' };
   };
 
   const handleAddPrenotazione = (e: React.FormEvent) => {
@@ -260,7 +260,7 @@ export default function App() {
           <nav className="space-y-2 flex-1">
             <SidebarItem 
               icon={<LayoutDashboard size={20} />} 
-              label="Dashboard" 
+              label="Home" 
               active={activeTab === 'dashboard'} 
               onClick={() => setActiveTab('dashboard')} 
             />
@@ -317,40 +317,145 @@ export default function App() {
                 exit={{ opacity: 0, y: -20 }}
                 className="space-y-8"
               >
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-4">
+                  <div>
+                    <p className="text-slate-400 font-medium">Ecco il riepilogo delle attività di smaltimento per oggi.</p>
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="px-4 py-2 bg-white border border-slate-200 rounded-2xl shadow-sm flex items-center gap-2">
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                      <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">Sistema Online</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Prossimo Ritiro Card */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  <div className="lg:col-span-3 p-10 rounded-[48px] relative overflow-hidden bg-slate-900 shadow-2xl shadow-emerald-900/20 flex flex-col lg:flex-row items-center justify-between gap-10 border border-slate-800">
+                    {/* Background Decorative Elements */}
+                    <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 blur-[120px] rounded-full -mr-48 -mt-48" />
+                    <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 blur-[100px] rounded-full -ml-32 -mb-32" />
+                    
+                    <div className="relative z-10 flex items-center gap-8">
+                      <div className="w-20 h-20 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-[32px] flex items-center justify-center shadow-xl shadow-emerald-500/40 rotate-3 hover:rotate-0 transition-transform duration-500">
+                        <Calendar className="text-white w-10 h-10" />
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-black uppercase tracking-[0.2em] text-emerald-500/80 mb-2">Prossimo Ritiro Disponibile</p>
+                        <h2 className="text-5xl font-black text-white tracking-tighter">{dateDisponibili[0]}</h2>
+                      </div>
+                    </div>
+
+                    <div className="relative z-10 flex flex-wrap lg:flex-nowrap gap-6 items-center w-full lg:w-auto">
+                      {['Ingombranti', 'Potature'].map((tipo) => {
+                        const count = contaPrenotazioni(db, dateDisponibili[0], tipo as TipologiaRifiuto);
+                        const limit = LIMITI[tipo as TipologiaRifiuto];
+                        const status = getCapacityStatus(count, limit);
+                        const percentage = Math.min((count / limit) * 100, 100);
+                        
+                        return (
+                          <div key={tipo} className="flex-1 min-w-[200px] p-6 rounded-[32px] bg-white/5 backdrop-blur-md border border-white/10 flex flex-col gap-4 hover:bg-white/10 transition-colors group">
+                            <div className="flex justify-between items-center">
+                              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-emerald-400 transition-colors">{tipo}</p>
+                              <span className={cn("text-[10px] font-black px-2 py-0.5 rounded-full border", 
+                                status.label === 'PIENO' ? "bg-red-500/10 text-red-500 border-red-500/20" : 
+                                status.label === 'QUASI PIENO' ? "bg-yellow-500/10 text-yellow-500 border-yellow-500/20" : 
+                                "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                              )}>
+                                {status.label}
+                              </span>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <div className="flex justify-between items-end">
+                                <span className="text-2xl font-black text-white">{count}<span className="text-slate-500 text-sm font-bold ml-1">/ {limit}</span></span>
+                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Occupazione</span>
+                              </div>
+                              <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                                <motion.div 
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${percentage}%` }}
+                                  transition={{ duration: 1, ease: "easeOut" }}
+                                  className={cn("h-full rounded-full", 
+                                    status.label === 'PIENO' ? "bg-red-500" : 
+                                    status.label === 'QUASI PIENO' ? "bg-yellow-500" : 
+                                    "bg-emerald-500"
+                                  )} 
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      
+                      <button 
+                        onClick={() => setActiveTab('prenota')}
+                        className="w-20 h-20 bg-emerald-500 hover:bg-emerald-400 text-white rounded-[32px] flex items-center justify-center shadow-2xl shadow-emerald-500/40 transition-all hover:scale-110 active:scale-95 group"
+                        title="Nuova Prenotazione"
+                      >
+                        <PlusCircle size={40} className="group-hover:rotate-90 transition-transform duration-500" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                   {/* Stats Card */}
                   <div className={cn(
-                    "lg:col-span-2 p-8 rounded-[40px] border relative overflow-hidden bg-white border-slate-200 shadow-sm hover:shadow-md transition-shadow"
+                    "lg:col-span-2 p-10 rounded-[48px] border relative overflow-hidden bg-white border-slate-200 shadow-sm hover:shadow-xl transition-all duration-500 group"
                   )}>
                     <div className="relative z-10">
-                      <h2 className="text-3xl font-black tracking-tight mb-2 text-slate-800">Comune di Offida - Analytics</h2>
-                      <p className="text-sm font-medium text-slate-400 mb-8 max-w-md">Monitoraggio in tempo reale della capacità di smaltimento e delle prenotazioni attive.</p>
+                      <div className="flex justify-between items-start mb-8">
+                        <div>
+                          <h2 className="text-4xl font-black tracking-tighter text-slate-900">Home Analytics</h2>
+                          <p className="text-sm font-medium text-slate-400 mt-1">Capacità di smaltimento per data di ritiro.</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-full border border-blue-100">
+                            <div className="w-2 h-2 bg-blue-600 rounded-full" />
+                            <span className="text-[10px] font-black text-blue-600 uppercase">Ingombranti</span>
+                          </div>
+                          <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 rounded-full border border-emerald-100">
+                            <div className="w-2 h-2 bg-emerald-600 rounded-full" />
+                            <span className="text-[10px] font-black text-emerald-600 uppercase">Potature</span>
+                          </div>
+                        </div>
+                      </div>
                       
-                      <div className="h-[300px] w-full">
+                      <div className="h-[350px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={chartData}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.03)" />
-                            <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }} />
-                            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }} />
+                            <XAxis 
+                              dataKey="date" 
+                              axisLine={false} 
+                              tickLine={false} 
+                              tick={{ fontSize: 11, fontWeight: 800, fill: '#64748b' }} 
+                              dy={10}
+                            />
+                            <YAxis 
+                              axisLine={false} 
+                              tickLine={false} 
+                              tick={{ fontSize: 11, fontWeight: 800, fill: '#94a3b8' }} 
+                            />
                             <Tooltip 
                               cursor={{ fill: 'rgba(0,0,0,0.02)' }}
                               contentStyle={{ 
                                 backgroundColor: '#fff', 
-                                border: '1px solid #e2e8f0', 
-                                borderRadius: '20px',
-                                boxShadow: '0 20px 50px rgba(0,0,0,0.1)',
-                                padding: '12px'
+                                border: 'none', 
+                                borderRadius: '24px',
+                                boxShadow: '0 25px 50px -12px rgba(0,0,0,0.15)',
+                                padding: '20px'
                               }} 
                             />
-                            <Bar dataKey="Ingombranti" fill="#2563eb" radius={[6, 6, 0, 0]} />
-                            <Bar dataKey="Potature" fill="#10b981" radius={[6, 6, 0, 0]} />
+                            <Bar dataKey="Ingombranti" fill="#3b82f6" radius={[10, 10, 0, 0]} barSize={32} />
+                            <Bar dataKey="Potature" fill="#10b981" radius={[10, 10, 0, 0]} barSize={32} />
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
                     </div>
                     {/* Decorative background glow */}
-                    <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-600/5 blur-[120px] rounded-full -mr-40 -mt-40" />
-                    <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-600/5 blur-[100px] rounded-full -ml-32 -mb-32" />
+                    <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-600/5 blur-[120px] rounded-full -mr-40 -mt-40 group-hover:bg-emerald-600/10 transition-colors duration-700" />
                   </div>
 
                   {/* Quick Info */}
@@ -522,18 +627,6 @@ export default function App() {
                     <h2 className="text-3xl font-bold">{activeTab === 'attive' ? 'Ritiri Attivi' : 'Storico Prenotazioni'}</h2>
                     <p className="opacity-50">Gestione dei record {activeTab === 'attive' ? 'futuri e odierni' : 'passati'}.</p>
                   </div>
-                  {activeTab === 'attive' && (
-                    <div className="flex gap-2">
-                      <label className="flex items-center gap-2 px-4 py-2 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-all shadow-lg shadow-slate-700/30 font-bold text-sm cursor-pointer border border-slate-600">
-                        <Upload size={16} /> Importa CSV
-                        <input type="file" accept=".csv" className="hidden" onChange={handleImportCSV} />
-                      </label>
-                      <label className="flex items-center gap-2 px-4 py-2 bg-indigo-700 text-white rounded-xl hover:bg-indigo-800 transition-all shadow-lg shadow-indigo-700/30 font-bold text-sm cursor-pointer border border-indigo-600">
-                        <Upload size={16} /> Importa Word
-                        <input type="file" accept=".docx" className="hidden" onChange={handleImport} />
-                      </label>
-                    </div>
-                  )}
                 </div>
 
                 <div className="space-y-12">
@@ -668,6 +761,38 @@ export default function App() {
                   "p-8 rounded-[40px] border bg-white border-slate-200 shadow-xl"
                 )}>
                   <h3 className="text-xl font-black mb-6 flex items-center gap-3 text-slate-800">
+                    <Upload className="text-blue-600" size={24} />
+                    Importazione Dati
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <label className="flex items-center justify-center gap-3 p-6 bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl hover:bg-slate-100 transition-all cursor-pointer group">
+                      <div className="w-12 h-12 bg-slate-200 rounded-2xl flex items-center justify-center group-hover:bg-slate-300 transition-all">
+                        <Upload className="text-slate-600" />
+                      </div>
+                      <div className="text-left">
+                        <p className="font-bold text-slate-800">Importa CSV</p>
+                        <p className="text-xs text-slate-400">Carica file .csv</p>
+                      </div>
+                      <input type="file" accept=".csv" className="hidden" onChange={handleImportCSV} />
+                    </label>
+                    
+                    <label className="flex items-center justify-center gap-3 p-6 bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl hover:bg-slate-100 transition-all cursor-pointer group">
+                      <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center group-hover:bg-indigo-200 transition-all">
+                        <Upload className="text-indigo-600" />
+                      </div>
+                      <div className="text-left">
+                        <p className="font-bold text-slate-800">Importa Word</p>
+                        <p className="text-xs text-slate-400">Carica file .docx</p>
+                      </div>
+                      <input type="file" accept=".docx" className="hidden" onChange={handleImport} />
+                    </label>
+                  </div>
+                </div>
+
+                <div className={cn(
+                  "p-8 rounded-[40px] border bg-white border-slate-200 shadow-xl"
+                )}>
+                  <h3 className="text-xl font-black mb-6 flex items-center gap-3 text-slate-800">
                     <Calendar className="text-emerald-600" size={24} />
                     Date Extra Straordinarie
                   </h3>
@@ -773,21 +898,24 @@ function SidebarItem({ icon, label, active, onClick }: { icon: React.ReactNode, 
 
 function StatCard({ title, value, icon, color }: { title: string, value: string, icon: React.ReactNode, color: 'emerald' | 'blue' | 'orange' }) {
   const colors = {
-    emerald: "bg-emerald-600/10 text-emerald-600 border-emerald-600/20 shadow-emerald-600/5",
-    blue: "bg-blue-600/10 text-blue-600 border-blue-600/20 shadow-blue-600/5",
-    orange: "bg-orange-600/10 text-orange-600 border-orange-600/20 shadow-orange-600/5"
+    emerald: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 shadow-emerald-500/5",
+    blue: "bg-blue-500/10 text-blue-600 border-blue-500/20 shadow-blue-500/5",
+    orange: "bg-orange-500/10 text-orange-600 border-orange-500/20 shadow-orange-500/5"
   };
 
   return (
-    <div className={cn(
-      "p-6 rounded-[32px] border bg-white border-slate-200 shadow-sm hover:shadow-md transition-shadow"
-    )}>
-      <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center mb-4 border shadow-inner", colors[color])}>
-        {React.cloneElement(icon as React.ReactElement, { size: 24 })}
+    <motion.div 
+      whileHover={{ y: -5, scale: 1.02 }}
+      className={cn(
+        "p-8 rounded-[40px] border bg-white border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300"
+      )}
+    >
+      <div className={cn("w-14 h-14 rounded-[20px] flex items-center justify-center mb-6 border shadow-inner", colors[color])}>
+        {React.cloneElement(icon as React.ReactElement, { size: 28 })}
       </div>
-      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{title}</p>
-      <p className="text-3xl font-black text-slate-800">{value}</p>
-    </div>
+      <p className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 mb-2">{title}</p>
+      <p className="text-4xl font-black text-slate-900 tracking-tight">{value}</p>
+    </motion.div>
   );
 }
 
