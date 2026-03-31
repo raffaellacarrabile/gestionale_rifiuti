@@ -116,8 +116,9 @@ export default function App() {
     const limite = LIMITI[formData.tipologia];
 
     if (formData.dataRitiro !== "Data Extra" && count >= limite) {
-      alert(`Limite raggiunto per questa data e tipologia (${limite} slot)`);
-      return;
+      if (!confirm(`Attenzione: il limite per questa data (${limite} slot) è stato raggiunto. Vuoi comunque forzare l'inserimento?`)) {
+        return;
+      }
     }
 
     const nuova: Prenotazione = {
@@ -505,30 +506,35 @@ export default function App() {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="max-w-3xl mx-auto"
+                className="max-w-4xl mx-auto"
               >
                 <div className={cn(
-                  "p-10 rounded-[40px] border bg-white border-slate-200 shadow-2xl relative overflow-hidden"
+                  "p-12 rounded-[56px] border bg-white border-slate-200 shadow-2xl relative overflow-hidden"
                 )}>
-                  <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-600 to-emerald-600" />
+                  <div className="absolute top-0 left-0 w-full h-3 bg-gradient-to-r from-blue-600 via-emerald-500 to-blue-600" />
                   
-                  <h2 className="text-3xl font-black mb-8 flex items-center gap-3 text-slate-800">
-                    <PlusCircle className="text-emerald-600" size={32} />
-                    Nuova Prenotazione
-                  </h2>
+                  <div className="mb-12">
+                    <h2 className="text-4xl font-black flex items-center gap-4 text-slate-900 tracking-tighter">
+                      <div className="w-14 h-14 bg-emerald-100 rounded-2xl flex items-center justify-center">
+                        <PlusCircle className="text-emerald-600" size={32} />
+                      </div>
+                      Nuova Prenotazione
+                    </h2>
+                    <p className="text-slate-400 font-medium mt-3 ml-18">Compila i campi sottostanti per programmare un nuovo ritiro.</p>
+                  </div>
 
-                  <form onSubmit={handleAddPrenotazione} className="space-y-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <form onSubmit={handleAddPrenotazione} className="space-y-10">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       <InputGroup label="Nominativo Utente" value={formData.utente} onChange={v => setFormData({...formData, utente: v})} placeholder="Mario Rossi" required />
                       <InputGroup label="Telefono" value={formData.telefono} onChange={v => setFormData({...formData, telefono: v})} placeholder="333 1234567" required />
                     </div>
                     
                     <InputGroup label="Indirizzo Completo" value={formData.via} onChange={v => setFormData({...formData, via: v})} placeholder="Via Roma 1, Milano" required />
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Tipologia Rifiuto</label>
-                        <div className="flex gap-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div className="space-y-3">
+                        <label className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Tipologia Rifiuto</label>
+                        <div className="flex gap-3">
                           {[
                             { id: 'Ingombranti', color: 'bg-blue-600 border-blue-700 shadow-blue-600/30' },
                             { id: 'Potature', color: 'bg-emerald-600 border-emerald-700 shadow-emerald-600/30' }
@@ -538,9 +544,9 @@ export default function App() {
                               type="button"
                               onClick={() => setFormData({...formData, tipologia: t.id as TipologiaRifiuto})}
                               className={cn(
-                                "flex-1 py-4 rounded-2xl font-bold transition-all border text-sm",
+                                "flex-1 py-5 rounded-[24px] font-black transition-all border text-xs uppercase tracking-widest",
                                 formData.tipologia === t.id 
-                                  ? `${t.color} text-white shadow-lg scale-[1.02]` 
+                                  ? `${t.color} text-white shadow-xl scale-[1.02]` 
                                   : "bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-500"
                               )}
                             >
@@ -550,66 +556,81 @@ export default function App() {
                         </div>
                       </div>
 
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Data Ritiro</label>
-                        <select 
-                          value={formData.dataRitiro}
-                          onChange={(e) => setFormData({...formData, dataRitiro: e.target.value})}
-                          required
-                          className={cn(
-                            "w-full p-4 rounded-2xl border appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-600/20 transition-all bg-slate-50 border-slate-200 text-slate-700 font-medium"
-                          )}
-                        >
-                          <option value="">Seleziona una data...</option>
-                          {dateDisponibili.map(d => {
-                            const count = d === "Data Extra" ? 0 : contaPrenotazioni(db, d, formData.tipologia);
-                            const limite = LIMITI[formData.tipologia];
-                            const status = getCapacityStatus(count, limite);
-                            return (
-                              <option key={d} value={d} className={d !== "Data Extra" ? status.color : ""}>
-                                {d} {d !== "Data Extra" ? `(${count}/${limite}) - ${status.label}` : ''}
-                              </option>
-                            );
-                          })}
-                        </select>
-                        <div className="flex gap-4 mt-2 text-[10px] font-bold uppercase tracking-wider opacity-60">
-                          <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-600"></span> Disponibile</div>
-                          <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-600"></span> Quasi Pieno</div>
-                          <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-600"></span> Pieno</div>
+                      <div className="space-y-3">
+                        <label className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Data Ritiro</label>
+                        <div className="relative">
+                          <select 
+                            value={formData.dataRitiro}
+                            onChange={(e) => setFormData({...formData, dataRitiro: e.target.value})}
+                            required
+                            className={cn(
+                              "w-full p-5 rounded-[24px] border appearance-none focus:outline-none focus:ring-4 focus:ring-emerald-600/10 transition-all bg-slate-50 border-slate-200 text-slate-800 font-black text-sm pr-12"
+                            )}
+                          >
+                            <option value="">Seleziona una data...</option>
+                            {dateDisponibili.map(d => {
+                              const count = d === "Data Extra" ? 0 : contaPrenotazioni(db, d, formData.tipologia);
+                              const limite = LIMITI[formData.tipologia];
+                              const status = getCapacityStatus(count, limite);
+                              return (
+                                <option key={d} value={d} className={d !== "Data Extra" ? status.color : ""}>
+                                  {d} {d !== "Data Extra" ? `(${count}/${limite}) - ${status.label}` : ''}
+                                </option>
+                              );
+                            })}
+                          </select>
+                          <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                            <Calendar size={20} />
+                          </div>
+                        </div>
+                        <div className="flex gap-5 mt-3 text-[10px] font-black uppercase tracking-widest opacity-70 justify-center">
+                          <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-sm shadow-green-500/50"></span> Libero</div>
+                          <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-yellow-500 shadow-sm shadow-yellow-500/50"></span> Quasi Pieno</div>
+                          <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-sm shadow-red-500/50"></span> Pieno</div>
                         </div>
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex justify-between">
+                    <div className="space-y-3">
+                      <label className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1 flex justify-between items-center">
                         Materiali (uno per riga)
-                        {alertVietati && <span className="text-orange-600 flex items-center gap-1"><AlertTriangle size={12} /> Materiale non conforme!</span>}
+                        {alertVietati && (
+                          <motion.span 
+                            initial={{ x: 10, opacity: 0 }}
+                            animate={{ x: 0, opacity: 1 }}
+                            className="text-orange-600 flex items-center gap-2 bg-orange-50 px-3 py-1 rounded-full border border-orange-100"
+                          >
+                            <AlertTriangle size={14} /> Materiale non conforme!
+                          </motion.span>
+                        )}
                       </label>
                       <textarea 
                         value={formData.materiali}
                         onChange={(e) => handleMaterialiChange(e.target.value)}
                         placeholder="Es:&#10;Divano&#10;Frigorifero"
-                        rows={4}
+                        rows={5}
                         required
                         className={cn(
-                          "w-full p-4 rounded-2xl border focus:outline-none focus:ring-2 transition-all bg-slate-50 border-slate-200 text-slate-700 placeholder:text-slate-300 font-medium",
-                          alertVietati ? "border-orange-600/50 ring-orange-600/20" : "focus:ring-emerald-600/20"
+                          "w-full p-6 rounded-[32px] border focus:outline-none focus:ring-4 transition-all bg-slate-50 border-slate-200 text-slate-800 placeholder:text-slate-300 font-bold leading-relaxed",
+                          alertVietati ? "border-orange-500 ring-orange-500/10" : "focus:ring-emerald-600/10"
                         )}
                       />
                     </div>
 
                     <InputGroup label="Note Aggiuntive" value={formData.note} onChange={v => setFormData({...formData, note: v})} placeholder="Citofono guasto, lasciare fuori..." />
 
-                    <button 
+                    <motion.button 
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.99 }}
                       type="submit"
                       className={cn(
-                        "w-full py-5 text-white font-black uppercase tracking-widest rounded-2xl transition-all shadow-2xl flex items-center justify-center gap-3 text-sm",
-                        formData.tipologia === 'Ingombranti' ? "bg-blue-600 hover:bg-blue-700 shadow-blue-600/30" : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/30"
+                        "w-full py-6 text-white font-black uppercase tracking-[0.3em] rounded-[28px] transition-all shadow-2xl flex items-center justify-center gap-4 text-sm",
+                        formData.tipologia === 'Ingombranti' ? "bg-blue-600 hover:bg-blue-700 shadow-blue-600/40" : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/40"
                       )}
                     >
-                      <CheckCircle2 size={20} />
+                      <CheckCircle2 size={24} />
                       Conferma Prenotazione
-                    </button>
+                    </motion.button>
                   </form>
                 </div>
               </motion.div>
@@ -668,11 +689,13 @@ export default function App() {
                               <table className="w-full text-left border-collapse">
                                 <thead>
                                   <tr className={cn(
-                                    "border-b text-[10px] uppercase tracking-widest font-bold text-slate-400 border-slate-100 bg-slate-50/50"
+                                    "border-b text-[10px] uppercase tracking-widest font-black text-slate-400 border-slate-100 bg-slate-50/50"
                                   )}>
                                     <th className="p-4">Utente</th>
                                     <th className="p-4">Via</th>
                                     <th className="p-4">Telefono</th>
+                                    <th className="p-4">Data Ritiro</th>
+                                    <th className="p-4">Tipologia</th>
                                     <th className="p-4">Materiali</th>
                                     <th className="p-4">Note</th>
                                     <th className="p-4 w-10"></th>
@@ -687,36 +710,60 @@ export default function App() {
                                         <input 
                                           value={p.utente} 
                                           onChange={(e) => handleUpdateField(p.id, 'utente', e.target.value)}
-                                          className="w-full bg-transparent p-2 rounded font-medium focus:bg-white focus:shadow-sm focus:outline-none focus:ring-1 focus:ring-emerald-600/30"
+                                          className="w-full bg-transparent p-2 rounded font-bold text-slate-800 focus:bg-white focus:shadow-sm focus:outline-none focus:ring-1 focus:ring-emerald-600/30"
                                         />
                                       </td>
                                       <td className="p-2">
                                         <input 
                                           value={p.via} 
                                           onChange={(e) => handleUpdateField(p.id, 'via', e.target.value)}
-                                          className="w-full bg-transparent p-2 rounded text-slate-600 focus:bg-white focus:shadow-sm focus:outline-none focus:ring-1 focus:ring-emerald-600/30"
+                                          className="w-full bg-transparent p-2 rounded text-slate-600 font-medium focus:bg-white focus:shadow-sm focus:outline-none focus:ring-1 focus:ring-emerald-600/30"
                                         />
                                       </td>
                                       <td className="p-2">
                                         <input 
                                           value={p.telefono} 
                                           onChange={(e) => handleUpdateField(p.id, 'telefono', e.target.value)}
-                                          className="w-full bg-transparent p-2 rounded text-slate-600 focus:bg-white focus:shadow-sm focus:outline-none focus:ring-1 focus:ring-emerald-600/30"
+                                          className="w-full bg-transparent p-2 rounded text-slate-600 font-medium focus:bg-white focus:shadow-sm focus:outline-none focus:ring-1 focus:ring-emerald-600/30"
                                         />
+                                      </td>
+                                      <td className="p-2">
+                                        <select 
+                                          value={p.dataRitiro}
+                                          onChange={(e) => handleUpdateField(p.id, 'dataRitiro', e.target.value)}
+                                          className="w-full bg-transparent p-2 rounded text-slate-600 font-bold focus:bg-white focus:shadow-sm focus:outline-none focus:ring-1 focus:ring-emerald-600/30 appearance-none"
+                                        >
+                                          {dateDisponibili.map(d => (
+                                            <option key={d} value={d}>{d}</option>
+                                          ))}
+                                        </select>
+                                      </td>
+                                      <td className="p-2">
+                                        <select 
+                                          value={p.tipologia}
+                                          onChange={(e) => handleUpdateField(p.id, 'tipologia', e.target.value)}
+                                          className={cn(
+                                            "w-full bg-transparent p-2 rounded font-black text-[10px] uppercase tracking-widest focus:bg-white focus:shadow-sm focus:outline-none focus:ring-1 focus:ring-emerald-600/30 appearance-none",
+                                            p.tipologia === 'Ingombranti' ? "text-blue-600" : "text-emerald-600"
+                                          )}
+                                        >
+                                          <option value="Ingombranti">Ingombranti</option>
+                                          <option value="Potature">Potature</option>
+                                        </select>
                                       </td>
                                       <td className="p-2">
                                         <textarea 
                                           value={p.materiali} 
                                           onChange={(e) => handleUpdateField(p.id, 'materiali', e.target.value)}
                                           rows={1}
-                                          className="w-full bg-transparent p-2 rounded text-slate-600 focus:bg-white focus:shadow-sm focus:outline-none focus:ring-1 focus:ring-emerald-600/30 resize-none"
+                                          className="w-full bg-transparent p-2 rounded text-slate-600 font-medium focus:bg-white focus:shadow-sm focus:outline-none focus:ring-1 focus:ring-emerald-600/30 resize-none"
                                         />
                                       </td>
                                       <td className="p-2">
                                         <input 
                                           value={p.note} 
                                           onChange={(e) => handleUpdateField(p.id, 'note', e.target.value)}
-                                          className="w-full bg-transparent p-2 rounded text-slate-500 italic focus:bg-white focus:shadow-sm focus:outline-none focus:ring-1 focus:ring-emerald-600/30"
+                                          className="w-full bg-transparent p-2 rounded text-slate-500 italic font-medium focus:bg-white focus:shadow-sm focus:outline-none focus:ring-1 focus:ring-emerald-600/30"
                                         />
                                       </td>
                                       <td className="p-4">
