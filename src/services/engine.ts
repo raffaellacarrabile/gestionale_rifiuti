@@ -82,10 +82,6 @@ export function separaDatabase(database: Prenotazione[]) {
     if (p.dataRitiro === "Data Extra") return true;
     const d = parse(p.dataRitiro, 'dd/MM/yyyy', new Date());
     return isAfter(d, oggi) || isEqual(d, oggi);
-  }).sort((a, b) => {
-    if (a.dataRitiro === "Data Extra") return 1;
-    if (b.dataRitiro === "Data Extra") return -1;
-    return parse(a.dataRitiro, 'dd/MM/yyyy', new Date()).getTime() - parse(b.dataRitiro, 'dd/MM/yyyy', new Date()).getTime();
   });
 
   const storico = database.filter(p => {

@@ -18,11 +18,30 @@ import {
   Menu,
   X,
   Leaf,
-  FileText
+  FileText,
+  GripVertical,
+  ArrowRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
+import { 
+  DndContext, 
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { 
   generaDateRitiro, 
   separaDatabase, 
@@ -50,6 +69,12 @@ import {
 } from 'recharts';
 
 export default function App() {
+  const parseDate = (dateStr: string) => {
+    if (!dateStr || dateStr === "Data Extra") return new Date(8640000000000000); // Max date
+    const [d, m, y] = dateStr.split('/').map(Number);
+    return new Date(y, m - 1, d);
+  };
+
   const [db, setDb] = useState<Prenotazione[]>([]);
   const [config, setConfig] = useState<Config>(caricaConfig());
   const [activeTab, setActiveTab] = useState<'dashboard' | 'prenota' | 'attive' | 'storico' | 'settings'>('prenota');
@@ -101,8 +126,18 @@ export default function App() {
     }
   }, [formData.tipologia, dateDisponibili, db]);
 
-  const handleUpdateField = (id: string, field: keyof Prenotazione, value: string) => {
-    setDb(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
+  const handleUpdateField = (id: string, field: keyof Prenotazione, value: any) => {
+    setDb(prev => {
+      const updated = prev.map(p => p.id === id ? { ...p, [field]: value } : p);
+      if (field === 'dataRitiro') {
+        return updated.sort((a, b) => {
+          const dateA = parseDate(a.dataRitiro);
+          const dateB = parseDate(b.dataRitiro);
+          return dateA.getTime() - dateB.getTime();
+        });
+      }
+      return updated;
+    });
   };
 
   const getCapacityStatus = (count: number, limit: number) => {
@@ -142,7 +177,12 @@ export default function App() {
   };
 
   const confirmPrenotazione = (prenotazione: Prenotazione) => {
-    setDb([...db, prenotazione]);
+    const newDb = [...db, prenotazione].sort((a, b) => {
+      const dateA = parseDate(a.dataRitiro);
+      const dateB = parseDate(b.dataRitiro);
+      return dateA.getTime() - dateB.getTime();
+    });
+    setDb(newDb);
     setFormData({
       utente: '',
       via: '',
@@ -210,7 +250,13 @@ export default function App() {
       dataPrenotazione: format(new Date(), 'dd/MM/yyyy HH:mm')
     }));
 
-    setDb([...db, ...nuove]);
+    const newDb = [...db, ...nuove].sort((a, b) => {
+      const dateA = parseDate(a.dataRitiro);
+      const dateB = parseDate(b.dataRitiro);
+      return dateA.getTime() - dateB.getTime();
+    });
+
+    setDb(newDb);
     setShowImportModal(false);
     setImportData([]);
     toast.success(`Importati ${nuove.length} record con successo.`);
@@ -225,7 +271,12 @@ export default function App() {
       const content = event.target?.result as string;
       try {
         const nuove = parseCSV(content);
-        setDb([...db, ...nuove]);
+        const newDb = [...db, ...nuove].sort((a, b) => {
+          const dateA = parseDate(a.dataRitiro);
+          const dateB = parseDate(b.dataRitiro);
+          return dateA.getTime() - dateB.getTime();
+        });
+        setDb(newDb);
         toast.success(`Importati ${nuove.length} record dal CSV con successo.`);
       } catch (error) {
         console.error(error);
@@ -246,6 +297,26 @@ export default function App() {
       { name: 'Potature', value: counts['Potature'] || 0, color: '#34d399' }
     ];
   }, [attive]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (over && active.id !== over.id) {
+      const oldIndex = attive.findIndex(p => p.id === active.id);
+      const newIndex = attive.findIndex(p => p.id === over.id);
+      
+      const newAttive = arrayMove(attive, oldIndex, newIndex);
+      // Reconstruct the full database preserving the new order of active bookings
+      setDb([...newAttive, ...storico]);
+    }
+  };
 
   const chartData = useMemo(() => {
     const dates = dateDisponibili.filter(d => d !== "Data Extra");
@@ -352,7 +423,8 @@ export default function App() {
               >
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-4">
                   <div>
-                    <p className="text-slate-400 font-medium">Ecco il riepilogo delle attività di smaltimento per oggi.</p>
+                    <h2 className="text-4xl font-black tracking-tighter text-slate-900">Dashboard Overview</h2>
+                    <p className="text-slate-400 font-medium">Riepilogo delle prenotazioni attive e stato del sistema.</p>
                   </div>
                   <div className="flex gap-3">
                     <div className="px-4 py-2 bg-white border border-slate-200 rounded-2xl shadow-sm flex items-center gap-2">
@@ -362,172 +434,116 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Prossimo Ritiro Card */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                  <div className="lg:col-span-3 p-10 rounded-[48px] relative overflow-hidden bg-slate-900 shadow-2xl shadow-emerald-900/20 flex flex-col lg:flex-row items-center justify-between gap-10 border border-slate-800">
-                    {/* Background Decorative Elements */}
-                    <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 blur-[120px] rounded-full -mr-48 -mt-48" />
-                    <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 blur-[100px] rounded-full -ml-32 -mb-32" />
-                    
-                    <div className="relative z-10 flex items-center gap-8">
-                      <div className="w-20 h-20 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-[32px] flex items-center justify-center shadow-xl shadow-emerald-500/40 rotate-3 hover:rotate-0 transition-transform duration-500">
-                        <Calendar className="text-white w-10 h-10" />
-                      </div>
-                      <div>
-                        <p className="text-[11px] font-black uppercase tracking-[0.2em] text-emerald-500/80 mb-2">Prossimo Ritiro Disponibile</p>
-                        <h2 className="text-5xl font-black text-white tracking-tighter">{dateDisponibili[0]}</h2>
-                      </div>
+                {/* Overview Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="p-8 rounded-[40px] bg-white border border-slate-200 shadow-sm hover:shadow-xl transition-all group">
+                    <div className="w-14 h-14 bg-blue-500/10 text-blue-600 rounded-2xl flex items-center justify-center mb-6 border border-blue-500/20">
+                      <Calendar size={28} />
                     </div>
+                    <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-1">Totale Ritiri Attivi</p>
+                    <p className="text-4xl font-black text-slate-900">{attive.length}</p>
+                    <div className="mt-4 flex items-center gap-2 text-xs font-bold text-blue-600">
+                      <span>Prossimo: {dateDisponibili[0]}</span>
+                      <ArrowRight size={14} />
+                    </div>
+                  </div>
 
-                    <div className="relative z-10 flex flex-wrap lg:flex-nowrap gap-6 items-center w-full lg:w-auto">
-                      {['Ingombranti', 'Potature'].map((tipo) => {
-                        const count = contaPrenotazioni(db, dateDisponibili[0], tipo as TipologiaRifiuto);
-                        const limit = LIMITI[tipo as TipologiaRifiuto];
-                        const status = getCapacityStatus(count, limit);
-                        const percentage = Math.min((count / limit) * 100, 100);
-                        
-                        return (
-                          <div key={tipo} className="flex-1 min-w-[200px] p-6 rounded-[32px] bg-white/5 backdrop-blur-md border border-white/10 flex flex-col gap-4 hover:bg-white/10 transition-colors group">
-                            <div className="flex justify-between items-center">
-                              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-emerald-400 transition-colors">{tipo}</p>
-                              <span className={cn("text-[10px] font-black px-2 py-0.5 rounded-full border", 
-                                status.label === 'PIENO' ? "bg-red-500/10 text-red-500 border-red-500/20" : 
-                                status.label === 'QUASI PIENO' ? "bg-yellow-500/10 text-yellow-500 border-yellow-500/20" : 
-                                "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
-                              )}>
-                                {status.label}
-                              </span>
+                  <div className="p-8 rounded-[40px] bg-white border border-slate-200 shadow-sm hover:shadow-xl transition-all group">
+                    <div className="w-14 h-14 bg-emerald-500/10 text-emerald-600 rounded-2xl flex items-center justify-center mb-6 border border-emerald-500/20">
+                      <LayoutDashboard size={28} />
+                    </div>
+                    <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-1">Ingombranti</p>
+                    <p className="text-4xl font-black text-slate-900">{attive.filter(p => p.tipologia === 'Ingombranti').length}</p>
+                    <div className="mt-4 h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-blue-500 rounded-full" 
+                        style={{ width: `${(attive.filter(p => p.tipologia === 'Ingombranti').length / (attive.length || 1)) * 100}%` }} 
+                      />
+                    </div>
+                  </div>
+
+                  <div className="p-8 rounded-[40px] bg-white border border-slate-200 shadow-sm hover:shadow-xl transition-all group">
+                    <div className="w-14 h-14 bg-emerald-500/10 text-emerald-600 rounded-2xl flex items-center justify-center mb-6 border border-emerald-500/20">
+                      <Leaf size={28} />
+                    </div>
+                    <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-1">Potature</p>
+                    <p className="text-4xl font-black text-slate-900">{attive.filter(p => p.tipologia === 'Potature').length}</p>
+                    <div className="mt-4 h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-emerald-500 rounded-full" 
+                        style={{ width: `${(attive.filter(p => p.tipologia === 'Potature').length / (attive.length || 1)) * 100}%` }} 
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  {/* Recent Activity */}
+                  <div className="lg:col-span-2 p-10 rounded-[48px] bg-white border border-slate-200 shadow-sm">
+                    <h3 className="text-2xl font-black tracking-tighter text-slate-900 mb-6">Ultime Prenotazioni Attive</h3>
+                    <div className="space-y-4">
+                      {attive.slice(0, 5).map((p) => (
+                        <div key={p.id} className="flex items-center justify-between p-5 rounded-3xl bg-slate-50 border border-slate-100 hover:border-emerald-200 transition-all group">
+                          <div className="flex items-center gap-4">
+                            <div className={cn(
+                              "w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm",
+                              p.tipologia === 'Ingombranti' ? "bg-blue-100 text-blue-600" : "bg-emerald-100 text-emerald-600"
+                            )}>
+                              {p.tipologia === 'Ingombranti' ? <LayoutDashboard size={20} /> : <Leaf size={20} />}
                             </div>
-                            
-                            <div className="space-y-2">
-                              <div className="flex justify-between items-end">
-                                <span className="text-2xl font-black text-white">{count}<span className="text-slate-500 text-sm font-bold ml-1">/ {limit}</span></span>
-                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Occupazione</span>
-                              </div>
-                              <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
-                                <motion.div 
-                                  initial={{ width: 0 }}
-                                  animate={{ width: `${percentage}%` }}
-                                  transition={{ duration: 1, ease: "easeOut" }}
-                                  className={cn("h-full rounded-full", 
-                                    status.label === 'PIENO' ? "bg-red-500" : 
-                                    status.label === 'QUASI PIENO' ? "bg-yellow-500" : 
-                                    "bg-emerald-500"
-                                  )} 
-                                />
-                              </div>
+                            <div>
+                              <p className="font-bold text-slate-800">{p.utente}</p>
+                              <p className="text-xs text-slate-400 font-medium">{p.via} • {p.telefono}</p>
                             </div>
                           </div>
-                        );
-                      })}
-                      
+                          <div className="text-right">
+                            <p className="text-sm font-black text-slate-900">{p.dataRitiro}</p>
+                            <p className="text-[10px] uppercase tracking-widest font-bold text-slate-400">{p.tipologia}</p>
+                          </div>
+                        </div>
+                      ))}
+                      {attive.length === 0 && (
+                        <div className="py-20 text-center">
+                          <p className="text-slate-400 font-medium">Nessuna prenotazione attiva al momento.</p>
+                        </div>
+                      )}
+                    </div>
+                    {attive.length > 5 && (
+                      <button 
+                        onClick={() => setActiveTab('attive')}
+                        className="mt-6 w-full py-4 border-2 border-dashed border-slate-200 rounded-3xl text-slate-400 font-bold hover:border-emerald-300 hover:text-emerald-600 transition-all"
+                      >
+                        Visualizza tutte le {attive.length} prenotazioni
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Quick Actions */}
+                  <div className="space-y-6">
+                    <div className="p-8 rounded-[40px] bg-emerald-600 text-white shadow-xl shadow-emerald-600/20 relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 blur-3xl rounded-full -mr-16 -mt-16 group-hover:bg-white/20 transition-all" />
+                      <h3 className="text-xl font-black mb-2 relative z-10">Nuovo Ritiro</h3>
+                      <p className="text-emerald-100 text-sm mb-6 relative z-10">Inserisci velocemente una nuova prenotazione nel sistema.</p>
                       <button 
                         onClick={() => setActiveTab('prenota')}
-                        className="w-20 h-20 bg-emerald-500 hover:bg-emerald-400 text-white rounded-[32px] flex items-center justify-center shadow-2xl shadow-emerald-500/40 transition-all hover:scale-110 active:scale-95 group"
-                        title="Nuova Prenotazione"
+                        className="w-full py-4 bg-white text-emerald-600 font-black rounded-2xl shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all relative z-10"
                       >
-                        <PlusCircle size={40} className="group-hover:rotate-90 transition-transform duration-500" />
+                        VAI AL FORM
+                      </button>
+                    </div>
+
+                    <div className="p-8 rounded-[40px] bg-slate-900 text-white shadow-xl shadow-slate-900/20 relative overflow-hidden group">
+                      <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-500/10 blur-3xl rounded-full -ml-16 -mb-16 group-hover:bg-blue-500/20 transition-all" />
+                      <h3 className="text-xl font-black mb-2 relative z-10">Configurazione</h3>
+                      <p className="text-slate-400 text-sm mb-6 relative z-10">Gestisci le date extra e i materiali vietati.</p>
+                      <button 
+                        onClick={() => setActiveTab('settings')}
+                        className="w-full py-4 bg-slate-800 text-white font-black rounded-2xl shadow-lg hover:bg-slate-700 transition-all relative z-10"
+                      >
+                        IMPOSTAZIONI
                       </button>
                     </div>
                   </div>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                  {/* Stats Card */}
-                  <div className={cn(
-                    "lg:col-span-2 p-10 rounded-[48px] border relative overflow-hidden bg-white border-slate-200 shadow-sm hover:shadow-xl transition-all duration-500 group"
-                  )}>
-                    <div className="relative z-10">
-                      <div className="flex justify-between items-start mb-8">
-                        <div>
-                          <h2 className="text-4xl font-black tracking-tighter text-slate-900">Home Analytics</h2>
-                          <p className="text-sm font-medium text-slate-400 mt-1">Capacità di smaltimento per data di ritiro.</p>
-                        </div>
-                        <div className="flex gap-2">
-                          <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-full border border-blue-100">
-                            <div className="w-2 h-2 bg-blue-600 rounded-full" />
-                            <span className="text-[10px] font-black text-blue-600 uppercase">Ingombranti</span>
-                          </div>
-                          <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 rounded-full border border-emerald-100">
-                            <div className="w-2 h-2 bg-emerald-600 rounded-full" />
-                            <span className="text-[10px] font-black text-emerald-600 uppercase">Potature</span>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="h-[350px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={chartData}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.03)" />
-                            <XAxis 
-                              dataKey="date" 
-                              axisLine={false} 
-                              tickLine={false} 
-                              tick={{ fontSize: 11, fontWeight: 800, fill: '#64748b' }} 
-                              dy={10}
-                            />
-                            <YAxis 
-                              axisLine={false} 
-                              tickLine={false} 
-                              tick={{ fontSize: 11, fontWeight: 800, fill: '#94a3b8' }} 
-                            />
-                            <Tooltip 
-                              cursor={{ fill: 'rgba(0,0,0,0.02)' }}
-                              contentStyle={{ 
-                                backgroundColor: '#fff', 
-                                border: 'none', 
-                                borderRadius: '24px',
-                                boxShadow: '0 25px 50px -12px rgba(0,0,0,0.15)',
-                                padding: '20px'
-                              }} 
-                            />
-                            <Bar dataKey="Ingombranti" fill="#3b82f6" radius={[10, 10, 0, 0]} barSize={32} />
-                            <Bar dataKey="Potature" fill="#10b981" radius={[10, 10, 0, 0]} barSize={32} />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
-                    {/* Decorative background glow */}
-                    <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-600/5 blur-[120px] rounded-full -mr-40 -mt-40 group-hover:bg-emerald-600/10 transition-colors duration-700" />
-                  </div>
-
-                  {/* Quick Info */}
-                  <div className={cn(
-                    "p-8 rounded-[32px] border flex flex-col justify-between bg-white border-gray-200 shadow-sm"
-                  )}>
-                    <div>
-                      <div className="w-12 h-12 bg-emerald-600/10 rounded-2xl flex items-center justify-center mb-6">
-                        <Search className="text-emerald-600" />
-                      </div>
-                      <h3 className="text-xl font-bold mb-2">Stato Sistema</h3>
-                      <p className="text-sm opacity-60 mb-6">Tutti i motori di calcolo sono operativi. Database sincronizzato.</p>
-                      
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-center p-4 rounded-2xl bg-emerald-600/5 border border-emerald-600/10">
-                          <span className="text-sm font-medium">Attive</span>
-                          <span className="text-xl font-bold text-emerald-600">{attive.length}</span>
-                        </div>
-                        <div className="flex justify-between items-center p-4 rounded-2xl bg-blue-600/5 border border-blue-600/10">
-                          <span className="text-sm font-medium">Storico</span>
-                          <span className="text-xl font-bold text-blue-600">{storico.length}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <button 
-                      onClick={() => setActiveTab('prenota')}
-                      className="mt-8 w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl transition-all shadow-lg shadow-emerald-600/20"
-                    >
-                      Nuova Prenotazione
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  <StatCard title="Slot Ingombranti" value={`${attive.filter(p => p.tipologia === 'Ingombranti').length}`} icon={<LayoutDashboard />} color="blue" />
-                  <StatCard title="Slot Potature" value={`${attive.filter(p => p.tipologia === 'Potature').length}`} icon={<Leaf />} color="emerald" />
-                  <StatCard title="Prossimo Ritiro" value={dateDisponibili[0]} icon={<Calendar />} color="blue" />
-                  <StatCard title="Materiali Vietati" value={`${config.materialiVietati.length}`} icon={<AlertTriangle />} color="orange" />
                 </div>
               </motion.div>
             )}
@@ -668,25 +684,105 @@ export default function App() {
               </motion.div>
             )}
 
-            {(activeTab === 'attive' || activeTab === 'storico') && (
+            {activeTab === 'attive' && (
               <motion.div 
-                key={activeTab}
+                key="attive"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 className="space-y-6"
               >
                 <div className="flex justify-between items-end">
                   <div>
-                    <h2 className="text-3xl font-bold">{activeTab === 'attive' ? 'Ritiri Attivi' : 'Storico Prenotazioni'}</h2>
-                    <p className="opacity-50">Gestione dei record {activeTab === 'attive' ? 'futuri e odierni' : 'passati'}.</p>
+                    <h2 className="text-3xl font-black tracking-tighter text-slate-900">Ritiri Attivi</h2>
+                    <p className="text-slate-400 font-medium">Gestione "Excel-like" delle prenotazioni. Trascina le righe per riordinare.</p>
+                  </div>
+                  <div className="flex gap-3">
+                    <button 
+                      onClick={() => generaDocumentoWord(attive, 'Ingombranti', 'Tutti')}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 flex items-center gap-2"
+                    >
+                      <Download size={14} /> Export Ingombranti
+                    </button>
+                    <button 
+                      onClick={() => generaDocumentoWord(attive, 'Potature', 'Tutti')}
+                      className="px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20 flex items-center gap-2"
+                    >
+                      <Download size={14} /> Export Potature
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-[32px] border border-slate-200 shadow-xl overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <DndContext 
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <table className="w-full text-left border-collapse table-fixed">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                            <th className="p-3 w-8 border-r border-slate-200"></th>
+                            <th className="p-3 border-r border-slate-200 w-[150px]">Utente</th>
+                            <th className="p-3 border-r border-slate-200 w-[150px]">Via</th>
+                            <th className="p-3 border-r border-slate-200 w-[120px]">Telefono</th>
+                            <th className="p-3 border-r border-slate-200 w-[130px]">Data Ritiro</th>
+                            <th className="p-3 border-r border-slate-200 w-[120px]">Tipologia</th>
+                            <th className="p-3 border-r border-slate-200 w-[200px]">Materiali</th>
+                            <th className="p-3 border-r border-slate-200 w-[150px]">Note</th>
+                            <th className="p-3 w-10"></th>
+                          </tr>
+                        </thead>
+                        <SortableContext 
+                          items={attive.map(p => p.id)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          <tbody>
+                            {attive.map((p) => (
+                              <SortableRow 
+                                key={p.id} 
+                                p={p} 
+                                handleUpdateField={handleUpdateField} 
+                                handleDelete={handleDelete}
+                                dateDisponibili={dateDisponibili}
+                              />
+                            ))}
+                          </tbody>
+                        </SortableContext>
+                      </table>
+                    </DndContext>
+                  </div>
+                </div>
+                {attive.length === 0 && (
+                  <div className="p-20 rounded-[40px] border border-dashed flex flex-col items-center justify-center bg-white/50 border-slate-300 text-slate-400">
+                    <Search size={64} className="mb-6 opacity-20" />
+                    <p className="text-2xl font-black uppercase tracking-widest opacity-40">Nessun record trovato</p>
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {activeTab === 'storico' && (
+              <motion.div 
+                key="storico"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="space-y-6"
+              >
+                <div className="flex justify-between items-end">
+                  <div>
+                    <h2 className="text-3xl font-black tracking-tighter text-slate-900">Storico Prenotazioni</h2>
+                    <p className="text-slate-400 font-medium">Archivio dei ritiri completati.</p>
                   </div>
                 </div>
 
                 <div className="space-y-12">
                   {groupedPrenotazioni.map(([data, types]: [string, Record<TipologiaRifiuto, Prenotazione[]>]) => (
                     <div key={data} className="space-y-6">
-                      <h3 className="text-2xl font-bold flex items-center gap-2 border-b border-emerald-500/20 pb-2">
-                        <Calendar className="text-emerald-500" />
+                      <h3 className="text-2xl font-black tracking-tight flex items-center gap-3 text-slate-800 border-b border-slate-200 pb-3">
+                        <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center">
+                          <Calendar className="text-slate-500" size={20} />
+                        </div>
                         Data Ritiro: {data}
                       </h3>
                       
@@ -695,117 +791,33 @@ export default function App() {
                           <div key={tipo} className="space-y-3">
                             <div className="flex justify-between items-center">
                               <h4 className={cn(
-                                "text-sm font-bold uppercase tracking-widest flex items-center gap-2",
-                                tipo === 'Ingombranti' ? "text-blue-700" : "text-emerald-700"
+                                "text-xs font-black uppercase tracking-widest flex items-center gap-2",
+                                tipo === 'Ingombranti' ? "text-blue-600" : "text-emerald-600"
                               )}>
-                                {tipo === 'Ingombranti' ? <LayoutDashboard size={16} /> : <Leaf size={16} />}
-                                {tipo} - {data} ({list.length}/{LIMITI[tipo as TipologiaRifiuto]})
-                                {data !== "Data Extra" && (
-                                  <span className={cn("w-2.5 h-2.5 rounded-full shadow-sm", getCapacityStatus(list.length, LIMITI[tipo as TipologiaRifiuto]).dot)} />
-                                )}
+                                {tipo === 'Ingombranti' ? <LayoutDashboard size={14} /> : <Leaf size={14} />}
+                                {tipo} • {list.length} record
                               </h4>
-                              <button 
-                                onClick={() => generaDocumentoWord(list, tipo as TipologiaRifiuto, data)}
-                                className={cn(
-                                  "text-[10px] uppercase font-bold flex items-center gap-1 px-3 py-1 rounded-lg text-white transition-all",
-                                  tipo === 'Ingombranti' ? "bg-blue-600 hover:bg-blue-700" : "bg-emerald-600 hover:bg-emerald-700"
-                                )}
-                              >
-                                <Download size={12} /> Export {tipo}
-                              </button>
                             </div>
 
-                            <div className={cn(
-                              "overflow-x-auto rounded-3xl border bg-white border-slate-200 shadow-md"
-                            )}>
-                              <table className="w-full text-left border-collapse">
+                            <div className="overflow-x-auto rounded-3xl border bg-white border-slate-200 shadow-sm">
+                              <table className="w-full text-left border-collapse table-fixed">
                                 <thead>
-                                  <tr className={cn(
-                                    "border-b text-[10px] uppercase tracking-widest font-black text-slate-400 border-slate-100 bg-slate-50/50"
-                                  )}>
-                                    <th className="p-4">Utente</th>
-                                    <th className="p-4">Via</th>
-                                    <th className="p-4">Telefono</th>
-                                    <th className="p-4">Data Ritiro</th>
-                                    <th className="p-4">Tipologia</th>
-                                    <th className="p-4">Materiali</th>
-                                    <th className="p-4">Note</th>
-                                    <th className="p-4 w-10"></th>
+                                  <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                    <th className="p-3 border-r border-slate-100 w-[150px]">Utente</th>
+                                    <th className="p-3 border-r border-slate-100 w-[150px]">Via</th>
+                                    <th className="p-3 border-r border-slate-100 w-[120px]">Telefono</th>
+                                    <th className="p-3 border-r border-slate-100 w-[200px]">Materiali</th>
+                                    <th className="p-3 w-[150px]">Note</th>
                                   </tr>
                                 </thead>
                                 <tbody>
                                   {list.map((p) => (
-                                    <tr key={p.id} className={cn(
-                                      "border-b last:border-0 group transition-colors border-slate-50 hover:bg-slate-50/80"
-                                    )}>
-                                      <td className="p-2">
-                                        <input 
-                                          value={p.utente} 
-                                          onChange={(e) => handleUpdateField(p.id, 'utente', e.target.value)}
-                                          className="w-full bg-transparent p-2 rounded font-bold text-slate-800 focus:bg-white focus:shadow-sm focus:outline-none focus:ring-1 focus:ring-emerald-600/30"
-                                        />
-                                      </td>
-                                      <td className="p-2">
-                                        <input 
-                                          value={p.via} 
-                                          onChange={(e) => handleUpdateField(p.id, 'via', e.target.value)}
-                                          className="w-full bg-transparent p-2 rounded text-slate-600 font-medium focus:bg-white focus:shadow-sm focus:outline-none focus:ring-1 focus:ring-emerald-600/30"
-                                        />
-                                      </td>
-                                      <td className="p-2">
-                                        <input 
-                                          value={p.telefono} 
-                                          onChange={(e) => handleUpdateField(p.id, 'telefono', e.target.value)}
-                                          className="w-full bg-transparent p-2 rounded text-slate-600 font-medium focus:bg-white focus:shadow-sm focus:outline-none focus:ring-1 focus:ring-emerald-600/30"
-                                        />
-                                      </td>
-                                      <td className="p-2">
-                                        <select 
-                                          value={p.dataRitiro}
-                                          onChange={(e) => handleUpdateField(p.id, 'dataRitiro', e.target.value)}
-                                          className="w-full bg-transparent p-2 rounded text-slate-600 font-bold focus:bg-white focus:shadow-sm focus:outline-none focus:ring-1 focus:ring-emerald-600/30 appearance-none"
-                                        >
-                                          {dateDisponibili.map(d => (
-                                            <option key={d} value={d}>{d}</option>
-                                          ))}
-                                        </select>
-                                      </td>
-                                      <td className="p-2">
-                                        <select 
-                                          value={p.tipologia}
-                                          onChange={(e) => handleUpdateField(p.id, 'tipologia', e.target.value)}
-                                          className={cn(
-                                            "w-full bg-transparent p-2 rounded font-black text-[10px] uppercase tracking-widest focus:bg-white focus:shadow-sm focus:outline-none focus:ring-1 focus:ring-emerald-600/30 appearance-none",
-                                            p.tipologia === 'Ingombranti' ? "text-blue-600" : "text-emerald-600"
-                                          )}
-                                        >
-                                          <option value="Ingombranti">Ingombranti</option>
-                                          <option value="Potature">Potature</option>
-                                        </select>
-                                      </td>
-                                      <td className="p-2">
-                                        <textarea 
-                                          value={p.materiali} 
-                                          onChange={(e) => handleUpdateField(p.id, 'materiali', e.target.value)}
-                                          rows={1}
-                                          className="w-full bg-transparent p-2 rounded text-slate-600 font-medium focus:bg-white focus:shadow-sm focus:outline-none focus:ring-1 focus:ring-emerald-600/30 resize-none"
-                                        />
-                                      </td>
-                                      <td className="p-2">
-                                        <input 
-                                          value={p.note} 
-                                          onChange={(e) => handleUpdateField(p.id, 'note', e.target.value)}
-                                          className="w-full bg-transparent p-2 rounded text-slate-500 italic font-medium focus:bg-white focus:shadow-sm focus:outline-none focus:ring-1 focus:ring-emerald-600/30"
-                                        />
-                                      </td>
-                                      <td className="p-4">
-                                        <button 
-                                          onClick={() => handleDelete(p.id)}
-                                          className="opacity-0 group-hover:opacity-100 p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                                        >
-                                          <Trash2 size={16} />
-                                        </button>
-                                      </td>
+                                    <tr key={p.id} className="border-b last:border-0 border-slate-50 hover:bg-slate-50/50 transition-colors">
+                                      <td className="p-3 border-r border-slate-50 font-bold text-slate-800 truncate">{p.utente}</td>
+                                      <td className="p-3 border-r border-slate-50 text-slate-600 truncate">{p.via}</td>
+                                      <td className="p-3 border-r border-slate-50 text-slate-600">{p.telefono}</td>
+                                      <td className="p-3 border-r border-slate-50 text-slate-600 truncate">{p.materiali}</td>
+                                      <td className="p-3 text-slate-400 italic text-xs truncate">{p.note}</td>
                                     </tr>
                                   ))}
                                 </tbody>
@@ -1110,6 +1122,129 @@ function SidebarItem({ icon, label, active, onClick }: { icon: React.ReactNode, 
       {icon}
       <span>{label}</span>
     </button>
+  );
+}
+
+interface SortableRowProps {
+  p: Prenotazione;
+  handleUpdateField: (id: string, field: keyof Prenotazione, value: any) => void;
+  handleDelete: (id: string) => void;
+  dateDisponibili: string[];
+}
+
+const SortableRow: React.FC<SortableRowProps> = ({ 
+  p, 
+  handleUpdateField, 
+  handleDelete, 
+  dateDisponibili 
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: p.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 100 : 1,
+    opacity: isDragging ? 0.5 : 1,
+    position: isDragging ? 'relative' as const : 'static' as const,
+  };
+
+  return (
+    <tr 
+      ref={setNodeRef} 
+      style={style}
+      className={cn(
+        "border-b group transition-colors border-slate-200 hover:bg-slate-50/80",
+        isDragging && "shadow-2xl bg-white"
+      )}
+    >
+      <td className="p-0 w-8 border-r border-slate-200 text-center">
+        <button 
+          {...attributes} 
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing p-2 text-slate-300 hover:text-slate-600 transition-colors"
+        >
+          <GripVertical size={14} />
+        </button>
+      </td>
+      <td className="p-0 border-r border-slate-200 min-w-[150px]">
+        <textarea 
+          value={p.utente} 
+          onChange={(e) => handleUpdateField(p.id, 'utente', e.target.value)}
+          rows={1}
+          className="w-full bg-transparent p-3 font-bold text-slate-800 focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30 resize-none whitespace-normal break-words"
+        />
+      </td>
+      <td className="p-0 border-r border-slate-200 min-w-[150px]">
+        <textarea 
+          value={p.via} 
+          onChange={(e) => handleUpdateField(p.id, 'via', e.target.value)}
+          rows={1}
+          className="w-full bg-transparent p-3 text-slate-600 font-medium focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30 resize-none whitespace-normal break-words"
+        />
+      </td>
+      <td className="p-0 border-r border-slate-200 min-w-[120px]">
+        <input 
+          value={p.telefono} 
+          onChange={(e) => handleUpdateField(p.id, 'telefono', e.target.value)}
+          className="w-full bg-transparent p-3 text-slate-600 font-medium focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30"
+        />
+      </td>
+      <td className="p-0 border-r border-slate-200 min-w-[130px]">
+        <select 
+          value={p.dataRitiro}
+          onChange={(e) => handleUpdateField(p.id, 'dataRitiro', e.target.value)}
+          className="w-full bg-transparent p-3 text-slate-600 font-bold focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30 appearance-none"
+        >
+          {dateDisponibili.map(d => (
+            <option key={d} value={d}>{d}</option>
+          ))}
+        </select>
+      </td>
+      <td className="p-0 border-r border-slate-200 min-w-[120px]">
+        <select 
+          value={p.tipologia}
+          onChange={(e) => handleUpdateField(p.id, 'tipologia', e.target.value)}
+          className={cn(
+            "w-full bg-transparent p-3 font-black text-[10px] uppercase tracking-widest focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30 appearance-none",
+            p.tipologia === 'Ingombranti' ? "text-blue-600" : "text-emerald-600"
+          )}
+        >
+          <option value="Ingombranti">Ingombranti</option>
+          <option value="Potature">Potature</option>
+        </select>
+      </td>
+      <td className="p-0 border-r border-slate-200 min-w-[200px]">
+        <textarea 
+          value={p.materiali} 
+          onChange={(e) => handleUpdateField(p.id, 'materiali', e.target.value)}
+          rows={1}
+          className="w-full bg-transparent p-3 text-slate-600 font-medium focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30 resize-none whitespace-normal break-words"
+        />
+      </td>
+      <td className="p-0 border-r border-slate-200 min-w-[150px]">
+        <textarea 
+          value={p.note} 
+          onChange={(e) => handleUpdateField(p.id, 'note', e.target.value)}
+          rows={1}
+          className="w-full bg-transparent p-3 text-slate-500 italic font-medium focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30 resize-none whitespace-normal break-words"
+        />
+      </td>
+      <td className="p-0 text-center w-10">
+        <button 
+          onClick={() => handleDelete(p.id)}
+          className="p-2 text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+        >
+          <Trash2 size={14} />
+        </button>
+      </td>
+    </tr>
   );
 }
 
