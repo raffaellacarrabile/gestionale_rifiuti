@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Toaster, toast } from 'sonner';
 import { 
   LayoutDashboard, 
   Calendar, 
@@ -16,7 +17,8 @@ import {
   XCircle,
   Menu,
   X,
-  Leaf
+  Leaf,
+  FileText
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
@@ -109,17 +111,19 @@ export default function App() {
     return { color: 'text-green-600', label: 'LIBERO', dot: 'bg-green-600' };
   };
 
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [pendingPrenotazione, setPendingPrenotazione] = useState<Prenotazione | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importData, setImportData] = useState<any[]>([]);
+  const [importForm, setImportForm] = useState({ dataRitiro: '', tipologia: 'Ingombranti' as TipologiaRifiuto });
+
   const handleAddPrenotazione = (e: React.FormEvent) => {
     e.preventDefault();
     
     const count = contaPrenotazioni(db, formData.dataRitiro, formData.tipologia);
     const limite = LIMITI[formData.tipologia];
-
-    if (formData.dataRitiro !== "Data Extra" && count >= limite) {
-      if (!confirm(`Attenzione: il limite per questa data (${limite} slot) è stato raggiunto. Vuoi comunque forzare l'inserimento?`)) {
-        return;
-      }
-    }
 
     const nuova: Prenotazione = {
       id: Math.random().toString(36).substr(2, 9),
@@ -128,7 +132,17 @@ export default function App() {
       dataPrenotazione: format(new Date(), 'dd/MM/yyyy HH:mm')
     };
 
-    setDb([...db, nuova]);
+    if (formData.dataRitiro !== "Data Extra" && count >= limite) {
+      setPendingPrenotazione(nuova);
+      setShowConfirmModal(true);
+      return;
+    }
+
+    confirmPrenotazione(nuova);
+  };
+
+  const confirmPrenotazione = (prenotazione: Prenotazione) => {
+    setDb([...db, prenotazione]);
     setFormData({
       utente: '',
       via: '',
@@ -140,6 +154,9 @@ export default function App() {
     });
     setAlertVietati(false);
     setActiveTab('attive');
+    setShowConfirmModal(false);
+    setPendingPrenotazione(null);
+    toast.success("Prenotazione inserita con successo!");
   };
 
   const handleMaterialiChange = (val: string) => {
@@ -148,8 +165,16 @@ export default function App() {
   };
 
   const handleDelete = (id: string) => {
-    if (confirm('Sei sicuro di voler eliminare questa prenotazione?')) {
-      setDb(db.filter(p => p.id !== id));
+    setPendingDeleteId(id);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = () => {
+    if (pendingDeleteId) {
+      setDb(db.filter(p => p.id !== pendingDeleteId));
+      setShowDeleteModal(false);
+      setPendingDeleteId(null);
+      toast.success("Prenotazione eliminata.");
     }
   };
 
@@ -159,29 +184,36 @@ export default function App() {
 
     try {
       const data = await importaDaDocx(file);
-      const dataRitiro = prompt("Inserisci la data di ritiro per questi record (DD/MM/YYYY):");
-      const tipologia = prompt("Inserisci la tipologia (Ingombranti/Potature):") as TipologiaRifiuto;
-
-      if (!dataRitiro || !tipologia) return;
-
-      const nuove: Prenotazione[] = data.map(item => ({
-        id: Math.random().toString(36).substr(2, 9),
-        utente: item.utente || 'Sconosciuto',
-        via: item.via || 'N/D',
-        telefono: item.telefono || 'N/D',
-        materiali: formattaMateriali(item.materiali || ''),
-        note: 'Importato da Word',
-        dataRitiro: dataRitiro,
-        tipologia: tipologia,
-        dataPrenotazione: format(new Date(), 'dd/MM/yyyy HH:mm')
-      }));
-
-      setDb([...db, ...nuove]);
-      alert(`Importati ${nuove.length} record con successo.`);
+      setImportData(data);
+      setShowImportModal(true);
     } catch (error) {
       console.error(error);
-      alert("Errore durante l'importazione.");
+      toast.error("Errore durante l'importazione.");
     }
+  };
+
+  const confirmImport = () => {
+    if (!importForm.dataRitiro || !importForm.tipologia) {
+      toast.error("Inserisci tutti i dati richiesti.");
+      return;
+    }
+
+    const nuove: Prenotazione[] = importData.map(item => ({
+      id: Math.random().toString(36).substr(2, 9),
+      utente: item.utente || 'Sconosciuto',
+      via: item.via || 'N/D',
+      telefono: item.telefono || 'N/D',
+      materiali: formattaMateriali(item.materiali || ''),
+      note: 'Importato da Word',
+      dataRitiro: importForm.dataRitiro,
+      tipologia: importForm.tipologia,
+      dataPrenotazione: format(new Date(), 'dd/MM/yyyy HH:mm')
+    }));
+
+    setDb([...db, ...nuove]);
+    setShowImportModal(false);
+    setImportData([]);
+    toast.success(`Importati ${nuove.length} record con successo.`);
   };
 
   const handleImportCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -194,10 +226,10 @@ export default function App() {
       try {
         const nuove = parseCSV(content);
         setDb([...db, ...nuove]);
-        alert(`Importati ${nuove.length} record dal CSV con successo.`);
+        toast.success(`Importati ${nuove.length} record dal CSV con successo.`);
       } catch (error) {
         console.error(error);
-        alert("Errore durante l'importazione del CSV.");
+        toast.error("Errore durante l'importazione del CSV.");
       }
     };
     reader.readAsText(file);
@@ -920,6 +952,144 @@ export default function App() {
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Confirmation Modals */}
+          <AnimatePresence>
+            {showConfirmModal && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                  className="bg-white rounded-[40px] p-10 max-w-md w-full shadow-2xl border border-slate-200"
+                >
+                  <div className="w-20 h-20 bg-orange-100 rounded-3xl flex items-center justify-center mb-8 mx-auto">
+                    <AlertTriangle className="text-orange-600" size={40} />
+                  </div>
+                  <h3 className="text-2xl font-black text-center mb-4 text-slate-900 tracking-tight">Data al Limite</h3>
+                  <p className="text-slate-500 text-center mb-10 font-medium leading-relaxed">
+                    Attenzione: il limite per questa data è stato raggiunto. Vuoi comunque forzare l'inserimento della prenotazione?
+                  </p>
+                  <div className="flex gap-4">
+                    <button 
+                      onClick={() => setShowConfirmModal(false)}
+                      className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black uppercase tracking-widest rounded-2xl transition-all text-xs"
+                    >
+                      Annulla
+                    </button>
+                    <button 
+                      onClick={() => pendingPrenotazione && confirmPrenotazione(pendingPrenotazione)}
+                      className="flex-1 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg shadow-emerald-600/30 text-xs"
+                    >
+                      Conferma
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
+            )}
+
+            {showDeleteModal && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                  className="bg-white rounded-[40px] p-10 max-w-md w-full shadow-2xl border border-slate-200"
+                >
+                  <div className="w-20 h-20 bg-red-100 rounded-3xl flex items-center justify-center mb-8 mx-auto">
+                    <AlertTriangle className="text-red-600" size={40} />
+                  </div>
+                  <h3 className="text-2xl font-black text-center mb-4 text-slate-900 tracking-tight">Elimina Prenotazione</h3>
+                  <p className="text-slate-500 text-center mb-10 font-medium leading-relaxed">
+                    Sei sicuro di voler eliminare definitivamente questa prenotazione? L'azione non può essere annullata.
+                  </p>
+                  <div className="flex gap-4">
+                    <button 
+                      onClick={() => setShowDeleteModal(false)}
+                      className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black uppercase tracking-widest rounded-2xl transition-all text-xs"
+                    >
+                      Annulla
+                    </button>
+                    <button 
+                      onClick={confirmDelete}
+                      className="flex-1 py-4 bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg shadow-red-600/30 text-xs"
+                    >
+                      Elimina
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
+            )}
+
+            {showImportModal && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                  className="bg-white rounded-[40px] p-10 max-w-md w-full shadow-2xl border border-slate-200"
+                >
+                  <div className="w-20 h-20 bg-blue-100 rounded-3xl flex items-center justify-center mb-8 mx-auto">
+                    <FileText className="text-blue-600" size={40} />
+                  </div>
+                  <h3 className="text-2xl font-black text-center mb-4 text-slate-900 tracking-tight">Configura Importazione</h3>
+                  <p className="text-slate-500 text-center mb-8 font-medium leading-relaxed">
+                    Hai caricato {importData.length} record. Specifica la data e la tipologia per completare l'importazione.
+                  </p>
+                  
+                  <div className="space-y-6 mb-10">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Data Ritiro</label>
+                      <select 
+                        value={importForm.dataRitiro}
+                        onChange={(e) => setImportForm({...importForm, dataRitiro: e.target.value})}
+                        className="w-full p-4 rounded-2xl border bg-slate-50 border-slate-200 text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-blue-600/20"
+                      >
+                        <option value="">Seleziona una data...</option>
+                        {dateDisponibili.map(d => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Tipologia</label>
+                      <div className="flex gap-2">
+                        {['Ingombranti', 'Potature'].map(t => (
+                          <button
+                            key={t}
+                            onClick={() => setImportForm({...importForm, tipologia: t as TipologiaRifiuto})}
+                            className={cn(
+                              "flex-1 py-3 rounded-xl font-bold border transition-all text-xs uppercase tracking-widest",
+                              importForm.tipologia === t 
+                                ? "bg-blue-600 text-white border-blue-700 shadow-lg" 
+                                : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"
+                            )}
+                          >
+                            {t}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4">
+                    <button 
+                      onClick={() => setShowImportModal(false)}
+                      className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black uppercase tracking-widest rounded-2xl transition-all text-xs"
+                    >
+                      Annulla
+                    </button>
+                    <button 
+                      onClick={confirmImport}
+                      className="flex-1 py-4 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg shadow-blue-600/30 text-xs"
+                    >
+                      Importa
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>
+          <Toaster position="top-right" richColors />
         </div>
       </main>
     </div>
