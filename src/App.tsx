@@ -258,16 +258,16 @@ export default function App() {
 
   const groupedPrenotazioni = useMemo(() => {
     const target = activeTab === 'attive' ? attive : storico;
-    const groups: Record<string, Record<TipologiaRifiuto, Prenotazione[]>> = {};
+    const groupsMap = new Map<string, Record<TipologiaRifiuto, Prenotazione[]>>();
     
     target.forEach(p => {
-      if (!groups[p.dataRitiro]) {
-        groups[p.dataRitiro] = { Ingombranti: [], Potature: [] };
+      if (!groupsMap.has(p.dataRitiro)) {
+        groupsMap.set(p.dataRitiro, { Ingombranti: [], Potature: [] });
       }
-      groups[p.dataRitiro][p.tipologia].push(p);
+      groupsMap.get(p.dataRitiro)![p.tipologia].push(p);
     });
     
-    return groups;
+    return Array.from(groupsMap.entries());
   }, [activeTab, attive, storico]);
 
   return (
@@ -683,14 +683,14 @@ export default function App() {
                 </div>
 
                 <div className="space-y-12">
-                  {Object.entries(groupedPrenotazioni).map(([data, types]) => (
+                  {groupedPrenotazioni.map(([data, types]: [string, Record<TipologiaRifiuto, Prenotazione[]>]) => (
                     <div key={data} className="space-y-6">
                       <h3 className="text-2xl font-bold flex items-center gap-2 border-b border-emerald-500/20 pb-2">
                         <Calendar className="text-emerald-500" />
                         Data Ritiro: {data}
                       </h3>
                       
-                      {Object.entries(types).map(([tipo, list]) => (
+                      {(Object.entries(types) as [TipologiaRifiuto, Prenotazione[]][]).map(([tipo, list]) => (
                         list.length > 0 && (
                           <div key={tipo} className="space-y-3">
                             <div className="flex justify-between items-center">
@@ -817,7 +817,7 @@ export default function App() {
                     </div>
                   ))}
 
-                  {Object.keys(groupedPrenotazioni).length === 0 && (
+                  {groupedPrenotazioni.length === 0 && (
                     <div className={cn(
                       "p-20 rounded-[40px] border border-dashed flex flex-col items-center justify-center bg-white/50 border-slate-300 text-slate-400"
                     )}>

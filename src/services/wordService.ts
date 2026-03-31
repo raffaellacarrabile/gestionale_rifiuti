@@ -1,4 +1,4 @@
-import { Document, Packer, Paragraph, Table, TableRow, TableCell, WidthType, AlignmentType, HeadingLevel, TextRun, PageBreak, SectionType } from 'docx';
+import { Document, Packer, Paragraph, Table, TableRow, TableCell, WidthType, AlignmentType, HeadingLevel, TextRun, PageBreak, SectionType, BorderStyle, VerticalAlign } from 'docx';
 import { Prenotazione, TipologiaRifiuto } from '../types';
 import { saveAs } from 'file-saver';
 
@@ -15,33 +15,50 @@ export async function generaDocumentoWord(prenotazioni: Prenotazione[], tipo: Ti
   }
 
   const sections = chunks.map((chunk, index) => {
-    const rows = [
-      new TableRow({
-        children: [
-          new TableCell({ children: [new Paragraph({ text: "UTENTE", style: "HeaderCell" })] }),
-          new TableCell({ children: [new Paragraph({ text: "VIA", style: "HeaderCell" })] }),
-          new TableCell({ children: [new Paragraph({ text: "TELEFONO", style: "HeaderCell" })] }),
-          new TableCell({ children: [new Paragraph({ text: "MATERIALI", style: "HeaderCell" })] }),
-        ],
-      }),
-      ...chunk.map(p => new TableRow({
-        children: [
-          new TableCell({ children: [new Paragraph(p.utente)] }),
-          new TableCell({ children: [new Paragraph(p.via)] }),
-          new TableCell({ children: [new Paragraph(p.telefono)] }),
-          new TableCell({ children: [new Paragraph(p.materiali)] }),
-        ],
-      })),
-      // Fill empty rows to maintain 6 rows per page if needed for layout consistency
-      ...Array(Math.max(0, 6 - chunk.length)).fill(0).map(() => new TableRow({
-        children: [
-          new TableCell({ children: [new Paragraph("")] }),
-          new TableCell({ children: [new Paragraph("")] }),
-          new TableCell({ children: [new Paragraph("")] }),
-          new TableCell({ children: [new Paragraph("")] }),
-        ],
-      }))
-    ];
+    const headerRow = new TableRow({
+      children: [
+        new TableCell({ 
+          children: [new Paragraph({ children: [new TextRun({ text: "UTENTE", bold: true, color: "FFFFFF" })], alignment: AlignmentType.CENTER })],
+          shading: { fill: "059669" },
+          verticalAlign: VerticalAlign.CENTER,
+        }),
+        new TableCell({ 
+          children: [new Paragraph({ children: [new TextRun({ text: "VIA", bold: true, color: "FFFFFF" })], alignment: AlignmentType.CENTER })],
+          shading: { fill: "059669" },
+          verticalAlign: VerticalAlign.CENTER,
+        }),
+        new TableCell({ 
+          children: [new Paragraph({ children: [new TextRun({ text: "TELEFONO", bold: true, color: "FFFFFF" })], alignment: AlignmentType.CENTER })],
+          shading: { fill: "059669" },
+          verticalAlign: VerticalAlign.CENTER,
+        }),
+        new TableCell({ 
+          children: [new Paragraph({ children: [new TextRun({ text: "MATERIALI", bold: true, color: "FFFFFF" })], alignment: AlignmentType.CENTER })],
+          shading: { fill: "059669" },
+          verticalAlign: VerticalAlign.CENTER,
+        }),
+      ],
+    });
+
+    const dataRows = chunk.map(p => new TableRow({
+      height: { value: 800, rule: "atLeast" },
+      children: [
+        new TableCell({ children: [new Paragraph({ text: p.utente, alignment: AlignmentType.LEFT })], verticalAlign: VerticalAlign.CENTER, margins: { left: 100 } }),
+        new TableCell({ children: [new Paragraph({ text: p.via, alignment: AlignmentType.LEFT })], verticalAlign: VerticalAlign.CENTER, margins: { left: 100 } }),
+        new TableCell({ children: [new Paragraph({ text: p.telefono, alignment: AlignmentType.CENTER })], verticalAlign: VerticalAlign.CENTER }),
+        new TableCell({ children: [new Paragraph({ text: p.materiali, alignment: AlignmentType.LEFT })], verticalAlign: VerticalAlign.CENTER, margins: { left: 100 } }),
+      ],
+    }));
+
+    const emptyRows = Array(Math.max(0, 6 - chunk.length)).fill(0).map(() => new TableRow({
+      height: { value: 800, rule: "atLeast" },
+      children: [
+        new TableCell({ children: [new Paragraph("")] }),
+        new TableCell({ children: [new Paragraph("")] }),
+        new TableCell({ children: [new Paragraph("")] }),
+        new TableCell({ children: [new Paragraph("")] }),
+      ],
+    }));
 
     return {
       properties: {
@@ -49,13 +66,44 @@ export async function generaDocumentoWord(prenotazioni: Prenotazione[], tipo: Ti
       },
       children: [
         new Paragraph({
-          text: `RITIRO ${tipo.toUpperCase()} - DATA: ${data}`,
-          heading: HeadingLevel.HEADING_1,
+          children: [
+            new TextRun({ text: "COMUNE DI OFFIDA", bold: true, size: 28, color: "059669" }),
+          ],
           alignment: AlignmentType.CENTER,
+          spacing: { after: 200 },
+        }),
+        new Paragraph({
+          children: [
+            new TextRun({ text: `ELENCO RITIRI ${tipo.toUpperCase()}`, bold: true, size: 24 }),
+          ],
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 100 },
+        }),
+        new Paragraph({
+          children: [
+            new TextRun({ text: `DATA: ${data}`, italics: true, size: 20 }),
+          ],
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 400 },
         }),
         new Table({
           width: { size: 100, type: WidthType.PERCENTAGE },
-          rows: rows,
+          rows: [headerRow, ...dataRows, ...emptyRows],
+          borders: {
+            top: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+            bottom: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+            left: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+            right: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+            insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+            insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+          },
+        }),
+        new Paragraph({
+          children: [
+            new TextRun({ text: `Pagina ${index + 1} di ${chunks.length}`, size: 16 }),
+          ],
+          alignment: AlignmentType.RIGHT,
+          spacing: { before: 400 },
         }),
       ],
     };
