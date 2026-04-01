@@ -97,6 +97,7 @@ export default function App() {
     }
   });
   const [loading, setLoading] = useState(true);
+  const [realtimeStatus, setRealtimeStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'prenota' | 'attive' | 'storico' | 'settings'>('prenota');
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -116,6 +117,8 @@ export default function App() {
   const [alertVietati, setAlertVietati] = useState(false);
 
   useEffect(() => {
+    let syncChannel: any;
+
     const init = async () => {
       try {
         const [initialDb, initialConfig] = await Promise.all([
@@ -129,9 +132,8 @@ export default function App() {
           toast.success("Connesso a Supabase con successo!");
           
           // Sottoscrizione Real-time per tutte le tabelle in un unico canale
-          // Usiamo un nome univoco per evitare errori di re-sottoscrizione in React Strict Mode
           const channelId = `realtime-sync-${Math.random().toString(36).substr(2, 9)}`;
-          const syncChannel = supabase
+          syncChannel = supabase
             .channel(channelId)
             .on(
               'postgres_changes',
@@ -151,11 +153,15 @@ export default function App() {
                 setConfig(updatedConfig);
               }
             )
-            .subscribe();
-
-          return () => {
-            supabase.removeChannel(syncChannel);
-          };
+            .subscribe((status) => {
+              console.log('Stato sottoscrizione realtime:', status);
+              if (status === 'SUBSCRIBED') {
+                setRealtimeStatus('connected');
+                console.log('Sottoscrizione realtime attiva!');
+              } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+                setRealtimeStatus('disconnected');
+              }
+            });
         }
       } catch (error) {
         console.error('Failed to initialize data:', error);
@@ -164,7 +170,14 @@ export default function App() {
         setLoading(false);
       }
     };
+
     init();
+
+    return () => {
+      if (syncChannel) {
+        supabase.removeChannel(syncChannel);
+      }
+    };
   }, []);
 
   // Rimosso l'auto-update massivo per evitare loop con il real-time
@@ -445,8 +458,10 @@ export default function App() {
                 <p className="text-[10px] uppercase tracking-widest text-emerald-600 font-bold">Gestione Ritiri</p>
                 <div className={cn(
                   "w-2 h-2 rounded-full",
-                  isSupabaseConfigured ? "bg-emerald-500 animate-pulse" : "bg-slate-300"
-                )} title={isSupabaseConfigured ? "Cloud Sincronizzato" : "Solo Locale"} />
+                  realtimeStatus === 'connected' ? "bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" : 
+                  realtimeStatus === 'connecting' ? "bg-amber-500 animate-pulse" : "bg-slate-300"
+                )} title={realtimeStatus === 'connected' ? "Cloud Realtime Attivo" : 
+                         realtimeStatus === 'connecting' ? "Connessione in corso..." : "Solo Locale"} />
               </div>
             </div>
           </div>
