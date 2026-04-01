@@ -50,6 +50,22 @@ export async function updateDatabase(db: Prenotazione[]) {
   }
 }
 
+export async function upsertPrenotazione(p: Prenotazione) {
+  if (!isSupabaseConfigured) return;
+  const { error } = await supabase
+    .from('prenotazioni')
+    .upsert(p, { onConflict: 'id' });
+  if (error) console.error('Error upserting record:', error);
+}
+
+export async function upsertConfig(config: Config) {
+  if (!isSupabaseConfigured) return;
+  const { error } = await supabase
+    .from('config')
+    .upsert({ key: 'main_config', value: config }, { onConflict: 'key' });
+  if (error) console.error('Error upserting config:', error);
+}
+
 export async function deleteFromDatabase(id: string) {
   if (!isSupabaseConfigured) return;
   

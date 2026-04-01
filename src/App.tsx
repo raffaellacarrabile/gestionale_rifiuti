@@ -55,6 +55,7 @@ import {
   fetchDatabase, 
   updateDatabase, 
   deleteFromDatabase,
+  upsertPrenotazione,
   fetchConfig, 
   updateConfig, 
   parseCSV,
@@ -203,7 +204,13 @@ export default function App() {
     }
   }, [formData.tipologia, dateDisponibili, db]);
 
-  const handleUpdateField = (id: string, field: keyof Prenotazione, value: any) => {
+  const handleUpdateField = async (id: string, field: keyof Prenotazione, value: any) => {
+    const updatedRecord = db.find(p => p.id === id);
+    if (updatedRecord) {
+      const newRecord = { ...updatedRecord, [field]: value };
+      await upsertPrenotazione(newRecord);
+    }
+
     setDb(prev => {
       const updated = prev.map(p => p.id === id ? { ...p, [field]: value } : p);
       if (field === 'dataRitiro') {
@@ -253,7 +260,10 @@ export default function App() {
     confirmPrenotazione(nuova);
   };
 
-  const confirmPrenotazione = (prenotazione: Prenotazione) => {
+  const confirmPrenotazione = async (prenotazione: Prenotazione) => {
+    // Salva su Supabase prima di aggiornare lo stato locale (o in parallelo)
+    await upsertPrenotazione(prenotazione);
+
     const newDb = [...db, prenotazione].sort((a, b) => {
       const dateA = parseDate(a.dataRitiro);
       const dateB = parseDate(b.dataRitiro);
@@ -335,6 +345,7 @@ export default function App() {
     });
 
     setDb(newDb);
+    updateDatabase(newDb);
     setShowImportModal(false);
     setImportData([]);
     toast.success(`Importati ${nuove.length} record con successo.`);
@@ -355,6 +366,7 @@ export default function App() {
           return dateA.getTime() - dateB.getTime();
         });
         setDb(newDb);
+        updateDatabase(newDb);
         toast.success(`Importati ${nuove.length} record dal CSV con successo.`);
       } catch (error) {
         console.error(error);
@@ -392,7 +404,9 @@ export default function App() {
       
       const newAttive = arrayMove(attive, oldIndex, newIndex);
       // Reconstruct the full database preserving the new order of active bookings
-      setDb([...newAttive, ...storico]);
+      const newDb = [...newAttive, ...storico];
+      setDb(newDb);
+      updateDatabase(newDb);
     }
   };
 
@@ -1175,10 +1189,12 @@ export default function App() {
                         )}
                       />
                       <button 
-                        onClick={() => {
+                        onClick={async () => {
                           const input = document.getElementById('new-extra-date') as HTMLInputElement;
                           if (input.value) {
-                            setConfig({...config, dateExtra: [...config.dateExtra, input.value]});
+                            const newConfig = {...config, dateExtra: [...config.dateExtra, input.value]};
+                            setConfig(newConfig);
+                            await updateConfig(newConfig);
                             input.value = '';
                           }
                         }}
@@ -1191,7 +1207,11 @@ export default function App() {
                       {config.dateExtra.map(d => (
                         <span key={d} className="px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm">
                           {d}
-                          <X size={16} className="cursor-pointer hover:text-red-500 transition-colors" onClick={() => setConfig({...config, dateExtra: config.dateExtra.filter(x => x !== d)})} />
+                          <X size={16} className="cursor-pointer hover:text-red-500 transition-colors" onClick={async () => {
+                            const newConfig = {...config, dateExtra: config.dateExtra.filter(x => x !== d)};
+                            setConfig(newConfig);
+                            await updateConfig(newConfig);
+                          }} />
                         </span>
                       ))}
                     </div>
@@ -1216,10 +1236,12 @@ export default function App() {
                         )}
                       />
                       <button 
-                        onClick={() => {
+                        onClick={async () => {
                           const input = document.getElementById('new-forbidden') as HTMLInputElement;
                           if (input.value) {
-                            setConfig({...config, materialiVietati: [...config.materialiVietati, input.value.toLowerCase()]});
+                            const newConfig = {...config, materialiVietati: [...config.materialiVietati, input.value.toLowerCase()]};
+                            setConfig(newConfig);
+                            await updateConfig(newConfig);
                             input.value = '';
                           }
                         }}
@@ -1232,7 +1254,11 @@ export default function App() {
                       {config.materialiVietati.map(m => (
                         <span key={m} className="px-4 py-2 bg-orange-50 text-orange-700 border border-orange-100 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm">
                           {m}
-                          <X size={16} className="cursor-pointer hover:text-red-500 transition-colors" onClick={() => setConfig({...config, materialiVietati: config.materialiVietati.filter(x => x !== m)})} />
+                          <X size={16} className="cursor-pointer hover:text-red-500 transition-colors" onClick={async () => {
+                            const newConfig = {...config, materialiVietati: config.materialiVietati.filter(x => x !== m)};
+                            setConfig(newConfig);
+                            await updateConfig(newConfig);
+                          }} />
                         </span>
                       ))}
                     </div>
