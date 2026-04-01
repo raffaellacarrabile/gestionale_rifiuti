@@ -1,5 +1,6 @@
 import { Prenotazione, Config, TipologiaRifiuto } from '../types';
 import { format } from 'date-fns';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 const DB_KEY = 'eco_ritiri_db';
 const CONFIG_KEY = 'eco_ritiri_config';
@@ -12,6 +13,90 @@ const DEFAULT_CONFIG: Config = {
     Potature: 5
   }
 };
+
+// --- Supabase Functions ---
+
+export async function fetchDatabase(): Promise<Prenotazione[]> {
+  if (!isSupabaseConfigured) return caricaDatabase();
+  
+  const { data, error } = await supabase
+    .from('prenotazioni')
+    .select('*')
+    .order('dataRitiro', { ascending: true });
+    
+  if (error) {
+    console.error('Error fetching database from Supabase:', error);
+    return caricaDatabase();
+  }
+  
+  return data || [];
+}
+
+export async function updateDatabase(db: Prenotazione[]) {
+  if (!isSupabaseConfigured) {
+    salvaDatabase(db);
+    return;
+  }
+  
+  // For simplicity in this implementation, we'll upsert the entire database.
+  // In a production app, you'd handle individual row updates.
+  const { error } = await supabase
+    .from('prenotazioni')
+    .upsert(db, { onConflict: 'id' });
+    
+  if (error) {
+    console.error('Error updating database in Supabase:', error);
+    salvaDatabase(db);
+  }
+}
+
+export async function deleteFromDatabase(id: string) {
+  if (!isSupabaseConfigured) return;
+  
+  const { error } = await supabase
+    .from('prenotazioni')
+    .delete()
+    .eq('id', id);
+    
+  if (error) {
+    console.error('Error deleting from Supabase:', error);
+  }
+}
+
+export async function fetchConfig(): Promise<Config> {
+  if (!isSupabaseConfigured) return caricaConfig();
+  
+  const { data, error } = await supabase
+    .from('config')
+    .select('value')
+    .eq('key', 'main_config')
+    .single();
+    
+  if (error) {
+    console.error('Error fetching config from Supabase:', error);
+    return caricaConfig();
+  }
+  
+  return data?.value || DEFAULT_CONFIG;
+}
+
+export async function updateConfig(config: Config) {
+  if (!isSupabaseConfigured) {
+    salvaConfig(config);
+    return;
+  }
+  
+  const { error } = await supabase
+    .from('config')
+    .upsert({ key: 'main_config', value: config }, { onConflict: 'key' });
+    
+  if (error) {
+    console.error('Error updating config in Supabase:', error);
+    salvaConfig(config);
+  }
+}
+
+// --- LocalStorage Fallbacks ---
 
 export function caricaDatabase(): Prenotazione[] {
   const data = localStorage.getItem(DB_KEY);

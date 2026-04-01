@@ -50,7 +50,14 @@ import {
   contaPrenotazioni,
   LIMITI
 } from './services/engine';
-import { caricaDatabase, salvaDatabase, caricaConfig, salvaConfig, parseCSV } from './services/storage';
+import { 
+  fetchDatabase, 
+  updateDatabase, 
+  deleteFromDatabase,
+  fetchConfig, 
+  updateConfig, 
+  parseCSV 
+} from './services/storage';
 import { generaDocumentoWord } from './services/wordService';
 import { importaDaDocx } from './services/importService';
 import { Prenotazione, TipologiaRifiuto, Config } from './types';
@@ -76,7 +83,16 @@ export default function App() {
   };
 
   const [db, setDb] = useState<Prenotazione[]>([]);
-  const [config, setConfig] = useState<Config>(caricaConfig());
+  const [config, setConfig] = useState<Config>({
+    dateExtra: [],
+    materialiVietati: ['macerie', 'vernice', 'batteria', 'eternit', 'pneumatici'],
+    limiti: {
+      Ingombranti: 10,
+      Potature: 5
+    }
+  });
+  const [loading, setLoading] = useState(true);
+
   const [activeTab, setActiveTab] = useState<'dashboard' | 'prenota' | 'attive' | 'storico' | 'settings'>('prenota');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -95,15 +111,31 @@ export default function App() {
   const [alertVietati, setAlertVietati] = useState(false);
 
   useEffect(() => {
-    setDb(caricaDatabase());
+    const init = async () => {
+      try {
+        const [initialDb, initialConfig] = await Promise.all([
+          fetchDatabase(),
+          fetchConfig()
+        ]);
+        setDb(initialDb);
+        setConfig(initialConfig);
+      } catch (error) {
+        console.error('Failed to initialize data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    init();
   }, []);
 
   useEffect(() => {
-    salvaDatabase(db);
+    if (db.length > 0) {
+      updateDatabase(db);
+    }
   }, [db]);
 
   useEffect(() => {
-    salvaConfig(config);
+    updateConfig(config);
   }, [config]);
 
   const { attive, storico } = useMemo(() => separaDatabase(db), [db]);
@@ -209,8 +241,9 @@ export default function App() {
     setShowDeleteModal(true);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (pendingDeleteId) {
+      await deleteFromDatabase(pendingDeleteId);
       setDb(db.filter(p => p.id !== pendingDeleteId));
       setShowDeleteModal(false);
       setPendingDeleteId(null);
@@ -350,6 +383,20 @@ export default function App() {
     <div className={cn(
       "min-h-screen flex transition-colors duration-300 bg-slate-50 text-slate-900"
     )}>
+      <AnimatePresence>
+        {loading && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center"
+          >
+            <div className="w-16 h-16 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mb-4" />
+            <p className="text-slate-500 font-black uppercase tracking-widest text-xs">Caricamento dati...</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Sidebar */}
       <aside className={cn(
         "fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out border-r bg-white border-slate-200 shadow-xl",
