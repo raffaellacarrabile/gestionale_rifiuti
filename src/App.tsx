@@ -753,17 +753,17 @@ export default function App() {
 
                               <div className="bg-white rounded-[32px] border border-slate-200 shadow-xl overflow-hidden">
                                 <div className="overflow-x-auto">
-                                  <table className="w-full text-left border-collapse table-fixed">
+                                  <table className="w-full text-left border-collapse">
                                     <thead>
                                       <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-400">
                                         <th className="p-3 w-8 border-r border-slate-200"></th>
-                                        <th className="p-3 border-r border-slate-200 w-[150px]">Utente</th>
-                                        <th className="p-3 border-r border-slate-200 w-[150px]">Via</th>
-                                        <th className="p-3 border-r border-slate-200 w-[120px]">Telefono</th>
-                                        <th className="p-3 border-r border-slate-200 w-[130px]">Data Ritiro</th>
-                                        <th className="p-3 border-r border-slate-200 w-[120px]">Tipologia</th>
-                                        <th className="p-3 border-r border-slate-200 w-[200px]">Materiali</th>
-                                        <th className="p-3 border-r border-slate-200 w-[150px]">Note</th>
+                                        <th className="p-3 border-r border-slate-200">Utente</th>
+                                        <th className="p-3 border-r border-slate-200">Via</th>
+                                        <th className="p-3 border-r border-slate-200">Telefono</th>
+                                        <th className="p-3 border-r border-slate-200">Data Ritiro</th>
+                                        <th className="p-3 border-r border-slate-200">Tipologia</th>
+                                        <th className="p-3 border-r border-slate-200">Materiali</th>
+                                        <th className="p-3 border-r border-slate-200">Note</th>
                                         <th className="p-3 w-10"></th>
                                       </tr>
                                     </thead>
@@ -841,14 +841,14 @@ export default function App() {
                             </div>
 
                             <div className="overflow-x-auto rounded-3xl border bg-white border-slate-200 shadow-sm">
-                              <table className="w-full text-left border-collapse table-fixed">
+                              <table className="w-full text-left border-collapse">
                                 <thead>
                                   <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                                    <th className="p-3 border-r border-slate-100 w-[150px]">Utente</th>
-                                    <th className="p-3 border-r border-slate-100 w-[150px]">Via</th>
-                                    <th className="p-3 border-r border-slate-100 w-[120px]">Telefono</th>
-                                    <th className="p-3 border-r border-slate-100 w-[200px]">Materiali</th>
-                                    <th className="p-3 w-[150px]">Note</th>
+                                    <th className="p-3 border-r border-slate-100">Utente</th>
+                                    <th className="p-3 border-r border-slate-100">Via</th>
+                                    <th className="p-3 border-r border-slate-100">Telefono</th>
+                                    <th className="p-3 border-r border-slate-100">Materiali</th>
+                                    <th className="p-3">Note</th>
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -1214,68 +1214,89 @@ const SortableRow: React.FC<SortableRowProps> = ({
           <GripVertical size={14} />
         </button>
       </td>
-      <td className="p-0 border-r border-slate-200 min-w-[150px]">
-        <textarea 
-          value={p.utente} 
-          onChange={(e) => handleUpdateField(p.id, 'utente', e.target.value)}
-          rows={1}
-          className="w-full bg-transparent p-3 font-bold text-slate-800 focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30 resize-none whitespace-normal break-words"
-        />
+      <td className="p-0 border-r border-slate-200">
+        <div className="relative min-w-[120px]">
+          <div className="invisible whitespace-pre-wrap p-3 font-bold break-words">{p.utente || ' '}</div>
+          <textarea 
+            value={p.utente} 
+            onChange={(e) => handleUpdateField(p.id, 'utente', e.target.value)}
+            rows={1}
+            className="absolute inset-0 w-full h-full bg-transparent p-3 font-bold text-slate-800 focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30 resize-none overflow-hidden"
+          />
+        </div>
       </td>
-      <td className="p-0 border-r border-slate-200 min-w-[150px]">
-        <textarea 
-          value={p.via} 
-          onChange={(e) => handleUpdateField(p.id, 'via', e.target.value)}
-          rows={1}
-          className="w-full bg-transparent p-3 text-slate-600 font-medium focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30 resize-none whitespace-normal break-words"
-        />
+      <td className="p-0 border-r border-slate-200">
+        <div className="relative min-w-[150px]">
+          <div className="invisible whitespace-pre-wrap p-3 font-medium break-words">{p.via || ' '}</div>
+          <textarea 
+            value={p.via} 
+            onChange={(e) => handleUpdateField(p.id, 'via', e.target.value)}
+            rows={1}
+            className="absolute inset-0 w-full h-full bg-transparent p-3 text-slate-600 font-medium focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30 resize-none overflow-hidden"
+          />
+        </div>
       </td>
-      <td className="p-0 border-r border-slate-200 min-w-[120px]">
-        <input 
-          value={p.telefono} 
-          onChange={(e) => handleUpdateField(p.id, 'telefono', e.target.value)}
-          className="w-full bg-transparent p-3 text-slate-600 font-medium focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30"
-        />
+      <td className="p-0 border-r border-slate-200">
+        <div className="relative min-w-[100px]">
+          <div className="invisible whitespace-nowrap p-3 font-medium">{p.telefono || ' '}</div>
+          <input 
+            value={p.telefono} 
+            onChange={(e) => handleUpdateField(p.id, 'telefono', e.target.value)}
+            className="absolute inset-0 w-full h-full bg-transparent p-3 text-slate-600 font-medium focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30"
+          />
+        </div>
       </td>
-      <td className="p-0 border-r border-slate-200 min-w-[130px]">
-        <select 
-          value={p.dataRitiro}
-          onChange={(e) => handleUpdateField(p.id, 'dataRitiro', e.target.value)}
-          className="w-full bg-transparent p-3 text-slate-600 font-bold focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30 appearance-none"
-        >
-          {dateDisponibili.map(d => (
-            <option key={d} value={d}>{d}</option>
-          ))}
-        </select>
+      <td className="p-0 border-r border-slate-200">
+        <div className="relative min-w-[130px]">
+          <div className="invisible whitespace-nowrap p-3 font-bold">{p.dataRitiro || ' '}</div>
+          <select 
+            value={p.dataRitiro}
+            onChange={(e) => handleUpdateField(p.id, 'dataRitiro', e.target.value)}
+            className="absolute inset-0 w-full h-full bg-transparent p-3 text-slate-600 font-bold focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30 appearance-none"
+          >
+            {dateDisponibili.map(d => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+          </select>
+        </div>
       </td>
-      <td className="p-0 border-r border-slate-200 min-w-[120px]">
-        <select 
-          value={p.tipologia}
-          onChange={(e) => handleUpdateField(p.id, 'tipologia', e.target.value)}
-          className={cn(
-            "w-full bg-transparent p-3 font-black text-[10px] uppercase tracking-widest focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30 appearance-none",
-            p.tipologia === 'Ingombranti' ? "text-blue-600" : "text-emerald-600"
-          )}
-        >
-          <option value="Ingombranti">Ingombranti</option>
-          <option value="Potature">Potature</option>
-        </select>
+      <td className="p-0 border-r border-slate-200">
+        <div className="relative min-w-[120px]">
+          <div className="invisible whitespace-nowrap p-3 font-black text-[10px] uppercase tracking-widest">{p.tipologia || ' '}</div>
+          <select 
+            value={p.tipologia}
+            onChange={(e) => handleUpdateField(p.id, 'tipologia', e.target.value)}
+            className={cn(
+              "absolute inset-0 w-full h-full bg-transparent p-3 font-black text-[10px] uppercase tracking-widest focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30 appearance-none",
+              p.tipologia === 'Ingombranti' ? "text-blue-600" : "text-emerald-600"
+            )}
+          >
+            <option value="Ingombranti">Ingombranti</option>
+            <option value="Potature">Potature</option>
+          </select>
+        </div>
       </td>
-      <td className="p-0 border-r border-slate-200 min-w-[200px]">
-        <textarea 
-          value={p.materiali} 
-          onChange={(e) => handleUpdateField(p.id, 'materiali', e.target.value)}
-          rows={1}
-          className="w-full bg-transparent p-3 text-slate-600 font-medium focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30 resize-none whitespace-normal break-words"
-        />
+      <td className="p-0 border-r border-slate-200">
+        <div className="relative min-w-[200px]">
+          <div className="invisible whitespace-pre-wrap p-3 font-medium break-words">{p.materiali || ' '}</div>
+          <textarea 
+            value={p.materiali} 
+            onChange={(e) => handleUpdateField(p.id, 'materiali', e.target.value)}
+            rows={1}
+            className="absolute inset-0 w-full h-full bg-transparent p-3 text-slate-600 font-medium focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30 resize-none overflow-hidden"
+          />
+        </div>
       </td>
-      <td className="p-0 border-r border-slate-200 min-w-[150px]">
-        <textarea 
-          value={p.note} 
-          onChange={(e) => handleUpdateField(p.id, 'note', e.target.value)}
-          rows={1}
-          className="w-full bg-transparent p-3 text-slate-500 italic font-medium focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30 resize-none whitespace-normal break-words"
-        />
+      <td className="p-0 border-r border-slate-200">
+        <div className="relative min-w-[150px]">
+          <div className="invisible whitespace-pre-wrap p-3 italic font-medium break-words">{p.note || ' '}</div>
+          <textarea 
+            value={p.note} 
+            onChange={(e) => handleUpdateField(p.id, 'note', e.target.value)}
+            rows={1}
+            className="absolute inset-0 w-full h-full bg-transparent p-3 text-slate-500 italic font-medium focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30 resize-none overflow-hidden"
+          />
+        </div>
       </td>
       <td className="p-0 text-center w-10">
         <button 
