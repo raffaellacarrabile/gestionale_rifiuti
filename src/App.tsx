@@ -338,7 +338,12 @@ export default function App() {
       groupsMap.get(p.dataRitiro)![p.tipologia].push(p);
     });
     
-    return Array.from(groupsMap.entries());
+    return Array.from(groupsMap.entries()).sort((a, b) => {
+      const dateA = parseDate(a[0]);
+      const dateB = parseDate(b[0]);
+      if (activeTab === 'storico') return dateB.getTime() - dateA.getTime();
+      return dateA.getTime() - dateB.getTime();
+    });
   }, [activeTab, attive, storico]);
 
   return (
@@ -689,70 +694,106 @@ export default function App() {
                 key="attive"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="space-y-6"
+                className="space-y-12"
               >
                 <div className="flex justify-between items-end">
                   <div>
                     <h2 className="text-3xl font-black tracking-tighter text-slate-900">Ritiri Attivi</h2>
-                    <p className="text-slate-400 font-medium">Gestione "Excel-like" delle prenotazioni. Trascina le righe per riordinare.</p>
+                    <p className="text-slate-400 font-medium">Gestione separata per data e tipologia. Trascina le righe per riordinare.</p>
                   </div>
                   <div className="flex gap-3">
                     <button 
                       onClick={() => generaDocumentoWord(attive, 'Ingombranti', 'Tutti')}
                       className="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 flex items-center gap-2"
                     >
-                      <Download size={14} /> Export Ingombranti
+                      <Download size={14} /> Export Tutti Ingombranti
                     </button>
                     <button 
                       onClick={() => generaDocumentoWord(attive, 'Potature', 'Tutti')}
                       className="px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20 flex items-center gap-2"
                     >
-                      <Download size={14} /> Export Potature
+                      <Download size={14} /> Export Tutte Potature
                     </button>
                   </div>
                 </div>
 
-                <div className="bg-white rounded-[32px] border border-slate-200 shadow-xl overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <DndContext 
-                      sensors={sensors}
-                      collisionDetection={closestCenter}
-                      onDragEnd={handleDragEnd}
-                    >
-                      <table className="w-full text-left border-collapse table-fixed">
-                        <thead>
-                          <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                            <th className="p-3 w-8 border-r border-slate-200"></th>
-                            <th className="p-3 border-r border-slate-200 w-[150px]">Utente</th>
-                            <th className="p-3 border-r border-slate-200 w-[150px]">Via</th>
-                            <th className="p-3 border-r border-slate-200 w-[120px]">Telefono</th>
-                            <th className="p-3 border-r border-slate-200 w-[130px]">Data Ritiro</th>
-                            <th className="p-3 border-r border-slate-200 w-[120px]">Tipologia</th>
-                            <th className="p-3 border-r border-slate-200 w-[200px]">Materiali</th>
-                            <th className="p-3 border-r border-slate-200 w-[150px]">Note</th>
-                            <th className="p-3 w-10"></th>
-                          </tr>
-                        </thead>
-                        <SortableContext 
-                          items={attive.map(p => p.id)}
-                          strategy={verticalListSortingStrategy}
-                        >
-                          <tbody>
-                            {attive.map((p) => (
-                              <SortableRow 
-                                key={p.id} 
-                                p={p} 
-                                handleUpdateField={handleUpdateField} 
-                                handleDelete={handleDelete}
-                                dateDisponibili={dateDisponibili}
-                              />
-                            ))}
-                          </tbody>
-                        </SortableContext>
-                      </table>
-                    </DndContext>
+                <DndContext 
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <div className="space-y-12">
+                    {groupedPrenotazioni.map(([data, types]: [string, Record<TipologiaRifiuto, Prenotazione[]>]) => (
+                      <div key={data} className="space-y-6">
+                        <h3 className="text-2xl font-black tracking-tight flex items-center gap-3 text-slate-800 border-b border-slate-200 pb-3">
+                          <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
+                            <Calendar className="text-emerald-600" size={20} />
+                          </div>
+                          Data Ritiro: {data}
+                        </h3>
+                        
+                        {(Object.entries(types) as [TipologiaRifiuto, Prenotazione[]][]).map(([tipo, list]) => (
+                          list.length > 0 && (
+                            <div key={tipo} className="space-y-3">
+                              <div className="flex justify-between items-center">
+                                <h4 className={cn(
+                                  "text-xs font-black uppercase tracking-widest flex items-center gap-2",
+                                  tipo === 'Ingombranti' ? "text-blue-600" : "text-emerald-600"
+                                )}>
+                                  {tipo === 'Ingombranti' ? <LayoutDashboard size={14} /> : <Leaf size={14} />}
+                                  {tipo} • {list.length} record
+                                </h4>
+                                <button 
+                                  onClick={() => generaDocumentoWord(list, tipo, data)}
+                                  className="text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-slate-600 flex items-center gap-1 transition-colors"
+                                >
+                                  <Download size={10} /> Export questa lista
+                                </button>
+                              </div>
+
+                              <div className="bg-white rounded-[32px] border border-slate-200 shadow-xl overflow-hidden">
+                                <div className="overflow-x-auto">
+                                  <table className="w-full text-left border-collapse table-fixed">
+                                    <thead>
+                                      <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                        <th className="p-3 w-8 border-r border-slate-200"></th>
+                                        <th className="p-3 border-r border-slate-200 w-[150px]">Utente</th>
+                                        <th className="p-3 border-r border-slate-200 w-[150px]">Via</th>
+                                        <th className="p-3 border-r border-slate-200 w-[120px]">Telefono</th>
+                                        <th className="p-3 border-r border-slate-200 w-[130px]">Data Ritiro</th>
+                                        <th className="p-3 border-r border-slate-200 w-[120px]">Tipologia</th>
+                                        <th className="p-3 border-r border-slate-200 w-[200px]">Materiali</th>
+                                        <th className="p-3 border-r border-slate-200 w-[150px]">Note</th>
+                                        <th className="p-3 w-10"></th>
+                                      </tr>
+                                    </thead>
+                                    <SortableContext 
+                                      items={list.map(p => p.id)}
+                                      strategy={verticalListSortingStrategy}
+                                    >
+                                      <tbody>
+                                        {list.map((p) => (
+                                          <SortableRow 
+                                            key={p.id} 
+                                            p={p} 
+                                            handleUpdateField={handleUpdateField} 
+                                            handleDelete={handleDelete}
+                                            dateDisponibili={dateDisponibili}
+                                          />
+                                        ))}
+                                      </tbody>
+                                    </SortableContext>
+                                  </table>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        ))}
+                      </div>
+                    ))}
                   </div>
-                </div>
+                </DndContext>
+
                 {attive.length === 0 && (
                   <div className="p-20 rounded-[40px] border border-dashed flex flex-col items-center justify-center bg-white/50 border-slate-300 text-slate-400">
                     <Search size={64} className="mb-6 opacity-20" />
