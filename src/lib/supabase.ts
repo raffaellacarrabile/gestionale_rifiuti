@@ -1,7 +1,12 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || (typeof process !== 'undefined' ? process.env.VITE_SUPABASE_URL : undefined);
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || (typeof process !== 'undefined' ? process.env.VITE_SUPABASE_ANON_KEY : undefined);
+const supabaseUrl = (typeof process !== 'undefined' && process.env.VITE_SUPABASE_URL) || 
+                    import.meta.env.VITE_SUPABASE_URL || 
+                    'https://ncppzswviyjvtbkrgdie.supabase.co';
+
+const supabaseAnonKey = (typeof process !== 'undefined' && process.env.VITE_SUPABASE_ANON_KEY) || 
+                       import.meta.env.VITE_SUPABASE_ANON_KEY || 
+                       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jcHB6c3d2aXlqdnRia3JnZGllIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5ODE0MjQsImV4cCI6MjA5MDU1NzQyNH0.BJLdpSvXMR6QxFZomdB71NlMSuUonhhimDeblLql1TE';
 
 let supabaseInstance: SupabaseClient | null = null;
 
