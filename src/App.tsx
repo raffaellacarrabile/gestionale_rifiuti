@@ -82,10 +82,16 @@ import {
 } from 'recharts';
 
 export default function App() {
-  const parseDate = (dateStr: string) => {
+  const parseDate = (dateStr: string | null | undefined) => {
     if (!dateStr || dateStr === "Data Extra") return new Date(8640000000000000); // Max date
-    const [d, m, y] = dateStr.split('/').map(Number);
-    return new Date(y, m - 1, d);
+    try {
+      const parts = dateStr.split('/');
+      if (parts.length !== 3) return new Date(8640000000000000);
+      const [d, m, y] = parts.map(Number);
+      return new Date(y, m - 1, d);
+    } catch {
+      return new Date(8640000000000000);
+    }
   };
 
   const [db, setDb] = useState<Prenotazione[]>([]);
@@ -378,7 +384,9 @@ export default function App() {
 
   const statsData = useMemo(() => {
     const counts = attive.reduce((acc, p) => {
-      acc[p.tipologia] = (acc[p.tipologia] || 0) + 1;
+      if (p && p.tipologia) {
+        acc[p.tipologia] = (acc[p.tipologia] || 0) + 1;
+      }
       return acc;
     }, {} as Record<string, number>);
 
@@ -424,10 +432,14 @@ export default function App() {
     const groupsMap = new Map<string, Record<TipologiaRifiuto, Prenotazione[]>>();
     
     target.forEach(p => {
+      if (!p || !p.dataRitiro) return;
       if (!groupsMap.has(p.dataRitiro)) {
         groupsMap.set(p.dataRitiro, { Ingombranti: [], Potature: [] });
       }
-      groupsMap.get(p.dataRitiro)![p.tipologia].push(p);
+      const group = groupsMap.get(p.dataRitiro);
+      if (group && p.tipologia && group[p.tipologia]) {
+        group[p.tipologia].push(p);
+      }
     });
     
     return Array.from(groupsMap.entries()).sort((a, b) => {
@@ -611,8 +623,8 @@ export default function App() {
                               {p.tipologia === 'Ingombranti' ? <LayoutDashboard size={20} /> : <Leaf size={20} />}
                             </div>
                             <div>
-                              <p className="font-bold text-slate-800">{p.utente}</p>
-                              <p className="text-xs text-slate-400 font-medium">{p.via} • {p.telefono}</p>
+                              <p className="font-bold text-slate-800">{p.utente || 'N/D'}</p>
+                              <p className="text-xs text-slate-400 font-medium">{p.via || 'N/D'} • {p.telefono || 'N/D'}</p>
                             </div>
                           </div>
                           <div className="text-right">
@@ -968,11 +980,11 @@ export default function App() {
                                 <tbody>
                                   {list.map((p) => (
                                     <tr key={p.id} className="border-b last:border-0 border-slate-50 hover:bg-slate-50/50 transition-colors">
-                                      <td className="p-3 border-r border-slate-50 font-bold text-slate-800 truncate">{p.utente}</td>
-                                      <td className="p-3 border-r border-slate-50 text-slate-600 truncate">{p.via}</td>
-                                      <td className="p-3 border-r border-slate-50 text-slate-600">{p.telefono}</td>
-                                      <td className="p-3 border-r border-slate-50 text-slate-600 truncate">{p.materiali}</td>
-                                      <td className="p-3 text-slate-400 italic text-xs truncate">{p.note}</td>
+                                      <td className="p-3 border-r border-slate-50 font-bold text-slate-800 truncate">{p.utente || 'N/D'}</td>
+                                      <td className="p-3 border-r border-slate-50 text-slate-600 truncate">{p.via || 'N/D'}</td>
+                                      <td className="p-3 border-r border-slate-50 text-slate-600">{p.telefono || 'N/D'}</td>
+                                      <td className="p-3 border-r border-slate-50 text-slate-600 truncate">{p.materiali || ''}</td>
+                                      <td className="p-3 text-slate-400 italic text-xs truncate">{p.note || ''}</td>
                                     </tr>
                                   ))}
                                 </tbody>
@@ -1480,7 +1492,7 @@ const SortableRow: React.FC<SortableRowProps> = ({
         <div className="relative min-w-[120px]">
           <div className="invisible whitespace-pre-wrap p-3 font-bold break-words">{p.utente || ' '}</div>
           <textarea 
-            value={p.utente} 
+            value={p.utente || ''} 
             onChange={(e) => handleUpdateField(p.id, 'utente', e.target.value)}
             rows={1}
             className="absolute inset-0 w-full h-full bg-transparent p-3 font-bold text-slate-800 focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30 resize-none overflow-hidden"
@@ -1491,7 +1503,7 @@ const SortableRow: React.FC<SortableRowProps> = ({
         <div className="relative min-w-[150px]">
           <div className="invisible whitespace-pre-wrap p-3 font-medium break-words">{p.via || ' '}</div>
           <textarea 
-            value={p.via} 
+            value={p.via || ''} 
             onChange={(e) => handleUpdateField(p.id, 'via', e.target.value)}
             rows={1}
             className="absolute inset-0 w-full h-full bg-transparent p-3 text-slate-600 font-medium focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30 resize-none overflow-hidden"
@@ -1502,7 +1514,7 @@ const SortableRow: React.FC<SortableRowProps> = ({
         <div className="relative min-w-[100px]">
           <div className="invisible whitespace-nowrap p-3 font-medium">{p.telefono || ' '}</div>
           <input 
-            value={p.telefono} 
+            value={p.telefono || ''} 
             onChange={(e) => handleUpdateField(p.id, 'telefono', e.target.value)}
             className="absolute inset-0 w-full h-full bg-transparent p-3 text-slate-600 font-medium focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30"
           />
@@ -1512,7 +1524,7 @@ const SortableRow: React.FC<SortableRowProps> = ({
         <div className="relative min-w-[130px]">
           <div className="invisible whitespace-nowrap p-3 font-bold">{p.dataRitiro || ' '}</div>
           <select 
-            value={p.dataRitiro}
+            value={p.dataRitiro || ''}
             onChange={(e) => handleUpdateField(p.id, 'dataRitiro', e.target.value)}
             className="absolute inset-0 w-full h-full bg-transparent p-3 text-slate-600 font-bold focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30 appearance-none"
           >
@@ -1526,7 +1538,7 @@ const SortableRow: React.FC<SortableRowProps> = ({
         <div className="relative min-w-[120px]">
           <div className="invisible whitespace-nowrap p-3 font-black text-[10px] uppercase tracking-widest">{p.tipologia || ' '}</div>
           <select 
-            value={p.tipologia}
+            value={p.tipologia || ''}
             onChange={(e) => handleUpdateField(p.id, 'tipologia', e.target.value)}
             className={cn(
               "absolute inset-0 w-full h-full bg-transparent p-3 font-black text-[10px] uppercase tracking-widest focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30 appearance-none",
@@ -1542,7 +1554,7 @@ const SortableRow: React.FC<SortableRowProps> = ({
         <div className="relative min-w-[200px]">
           <div className="invisible whitespace-pre-wrap p-3 font-medium break-words">{p.materiali || ' '}</div>
           <textarea 
-            value={p.materiali} 
+            value={p.materiali || ''} 
             onChange={(e) => handleUpdateField(p.id, 'materiali', e.target.value)}
             rows={1}
             className="absolute inset-0 w-full h-full bg-transparent p-3 text-slate-600 font-medium focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30 resize-none overflow-hidden"
@@ -1553,7 +1565,7 @@ const SortableRow: React.FC<SortableRowProps> = ({
         <div className="relative min-w-[150px]">
           <div className="invisible whitespace-pre-wrap p-3 italic font-medium break-words">{p.note || ' '}</div>
           <textarea 
-            value={p.note} 
+            value={p.note || ''} 
             onChange={(e) => handleUpdateField(p.id, 'note', e.target.value)}
             rows={1}
             className="absolute inset-0 w-full h-full bg-transparent p-3 text-slate-500 italic font-medium focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30 resize-none overflow-hidden"

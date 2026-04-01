@@ -35,8 +35,9 @@ export function generaDateRitiro(dateExtra: string[] = []): string[] {
   }
 
   // Routine Straordinaria: Date extra non antecedenti a oggi
-  const dateExtraValide = dateExtra
+  const dateExtraValide = (dateExtra || [])
     .filter(d => {
+      if (!d) return false;
       try {
         const parsed = parse(d, 'dd/MM/yyyy', new Date());
         return isAfter(parsed, oggi) || isEqual(parsed, oggi);
@@ -58,16 +59,18 @@ export function generaDateRitiro(dateExtra: string[] = []): string[] {
 }
 
 export function contaPrenotazioni(database: Prenotazione[], data: string, tipo: TipologiaRifiuto): number {
-  if (data === "Data Extra") return 0;
-  return database.filter(p => p.dataRitiro === data && p.tipologia === tipo).length;
+  if (!data || data === "Data Extra") return 0;
+  return database.filter(p => p && p.dataRitiro === data && p.tipologia === tipo).length;
 }
 
-export function validaMateriali(materiali: string, vietati: string[]): boolean {
+export function validaMateriali(materiali: string | null | undefined, vietati: string[]): boolean {
+  if (!materiali) return false;
   const matLower = materiali.toLowerCase();
-  return vietati.some(v => matLower.includes(v.toLowerCase()));
+  return vietati.some(v => v && matLower.includes(v.toLowerCase()));
 }
 
-export function formattaMateriali(materiali: string): string {
+export function formattaMateriali(materiali: string | null | undefined): string {
+  if (!materiali) return '';
   return materiali
     .split('\n')
     .filter(line => line.trim() !== '')
@@ -78,18 +81,34 @@ export function formattaMateriali(materiali: string): string {
 export function separaDatabase(database: Prenotazione[]) {
   const oggi = startOfToday();
   
-  const attive = database.filter(p => {
-    if (p.dataRitiro === "Data Extra") return true;
-    const d = parse(p.dataRitiro, 'dd/MM/yyyy', new Date());
-    return isAfter(d, oggi) || isEqual(d, oggi);
+  const safeDb = (database || []).filter(p => p && p.id);
+
+  const attive = safeDb.filter(p => {
+    if (!p.dataRitiro || p.dataRitiro === "Data Extra") return true;
+    try {
+      const d = parse(p.dataRitiro, 'dd/MM/yyyy', new Date());
+      return isAfter(d, oggi) || isEqual(d, oggi);
+    } catch {
+      return true; // Keep it in active if date is invalid
+    }
   });
 
-  const storico = database.filter(p => {
-    if (p.dataRitiro === "Data Extra") return false;
-    const d = parse(p.dataRitiro, 'dd/MM/yyyy', new Date());
-    return isBefore(d, oggi);
+  const storico = safeDb.filter(p => {
+    if (!p.dataRitiro || p.dataRitiro === "Data Extra") return false;
+    try {
+      const d = parse(p.dataRitiro, 'dd/MM/yyyy', new Date());
+      return isBefore(d, oggi);
+    } catch {
+      return false;
+    }
   }).sort((a, b) => {
-    return parse(b.dataRitiro, 'dd/MM/yyyy', new Date()).getTime() - parse(a.dataRitiro, 'dd/MM/yyyy', new Date()).getTime();
+    try {
+      const dateB = parse(b.dataRitiro, 'dd/MM/yyyy', new Date()).getTime();
+      const dateA = parse(a.dataRitiro, 'dd/MM/yyyy', new Date()).getTime();
+      return dateB - dateA;
+    } catch {
+      return 0;
+    }
   });
 
   return { attive, storico };
