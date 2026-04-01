@@ -986,21 +986,58 @@ export default function App() {
                     <LayoutDashboard className="text-blue-600" size={24} />
                     Stato Database Cloud (Supabase)
                   </h3>
-                  <div className="flex items-center gap-4 p-4 rounded-3xl bg-slate-50 border border-slate-100">
-                    <div className={cn(
-                      "w-4 h-4 rounded-full animate-pulse",
-                      isSupabaseConfigured ? "bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.5)]" : "bg-slate-300"
-                    )} />
-                    <div>
-                      <p className="font-black text-slate-700 uppercase tracking-widest text-[10px]">
-                        {isSupabaseConfigured ? "Sincronizzazione Attiva" : "Sincronizzazione Disattivata"}
-                      </p>
-                      <p className="text-sm text-slate-500 font-medium">
-                        {isSupabaseConfigured 
-                          ? "I dati sono salvati in tempo reale sul cloud." 
-                          : "Configura le chiavi nelle impostazioni del progetto per attivare il cloud."}
-                      </p>
+                  
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-4 p-6 rounded-3xl bg-slate-50 border border-slate-100">
+                      <div className={cn(
+                        "w-4 h-4 rounded-full",
+                        isSupabaseConfigured ? "bg-emerald-500 animate-pulse shadow-[0_0_12px_rgba(16,185,129,0.5)]" : "bg-slate-300"
+                      )} />
+                      <div className="flex-1">
+                        <p className="font-black text-slate-700 uppercase tracking-widest text-[10px]">
+                          {isSupabaseConfigured ? "Configurazione Rilevata" : "Configurazione Mancante"}
+                        </p>
+                        <p className="text-sm text-slate-500 font-medium">
+                          {isSupabaseConfigured 
+                            ? "Le chiavi sono state caricate correttamente." 
+                            : "L'app non rileva le variabili d'ambiente VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY."}
+                        </p>
+                      </div>
                     </div>
+
+                    {!isSupabaseConfigured && (
+                      <div className="p-6 bg-amber-50 border border-amber-100 rounded-3xl space-y-3">
+                        <p className="text-xs font-bold text-amber-800 flex items-center gap-2">
+                          <AlertTriangle size={14} /> Verifica Variabili:
+                        </p>
+                        <ul className="text-[11px] space-y-1 text-amber-700 font-medium list-disc ml-4">
+                          <li>URL rilevato: <span className="font-mono">{import.meta.env.VITE_SUPABASE_URL ? "✅ Presente" : "❌ Mancante"}</span></li>
+                          <li>Chiave rilevata: <span className="font-mono">{import.meta.env.VITE_SUPABASE_ANON_KEY ? "✅ Presente" : "❌ Mancante"}</span></li>
+                        </ul>
+                        <p className="text-[10px] text-amber-600 italic">
+                          Ricorda: dopo aver aggiunto le variabili nel menu Settings, devi ricaricare la pagina.
+                        </p>
+                      </div>
+                    )}
+
+                    {isSupabaseConfigured && (
+                      <button 
+                        onClick={async () => {
+                          const t = toast.loading("Test di connessione in corso...");
+                          try {
+                            const { data, error } = await supabase.from('prenotazioni').select('id').limit(1);
+                            if (error) throw error;
+                            toast.success("Connessione al database riuscita!", { id: t });
+                          } catch (err: any) {
+                            console.error(err);
+                            toast.error(`Errore database: ${err.message || "Verifica che le tabelle esistano"}`, { id: t });
+                          }
+                        }}
+                        className="w-full py-4 bg-slate-900 text-white font-black uppercase tracking-widest rounded-2xl transition-all hover:bg-slate-800 text-xs flex items-center justify-center gap-2"
+                      >
+                        <RefreshCw size={16} /> Test Connessione Database
+                      </button>
+                    )}
                   </div>
                 </div>
 
