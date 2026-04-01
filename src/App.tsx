@@ -1011,8 +1011,8 @@ export default function App() {
                           <AlertTriangle size={14} /> Verifica Variabili:
                         </p>
                         <ul className="text-[11px] space-y-1 text-amber-700 font-medium list-disc ml-4">
-                          <li>URL rilevato: <span className="font-mono">{import.meta.env.VITE_SUPABASE_URL ? "✅ Presente" : "❌ Mancante"}</span></li>
-                          <li>Chiave rilevata: <span className="font-mono">{import.meta.env.VITE_SUPABASE_ANON_KEY ? "✅ Presente" : "❌ Mancante"}</span></li>
+                          <li>URL rilevato: <span className="font-mono">{(import.meta.env.VITE_SUPABASE_URL || (typeof process !== 'undefined' && process.env.VITE_SUPABASE_URL)) ? "✅ Presente" : "❌ Mancante"}</span></li>
+                          <li>Chiave rilevata: <span className="font-mono">{(import.meta.env.VITE_SUPABASE_ANON_KEY || (typeof process !== 'undefined' && process.env.VITE_SUPABASE_ANON_KEY)) ? "✅ Presente" : "❌ Mancante"}</span></li>
                         </ul>
                         <p className="text-[10px] text-amber-600 italic">
                           Ricorda: dopo aver aggiunto le variabili nel menu Settings, devi ricaricare la pagina.
