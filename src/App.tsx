@@ -20,7 +20,8 @@ import {
   Leaf,
   FileText,
   GripVertical,
-  ArrowRight
+  ArrowRight,
+  RefreshCw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
@@ -58,7 +59,7 @@ import {
   updateConfig, 
   parseCSV 
 } from './services/storage';
-import { isSupabaseConfigured } from './lib/supabase';
+import { isSupabaseConfigured, supabase } from './lib/supabase';
 import { generaDocumentoWord } from './services/wordService';
 import { importaDaDocx } from './services/importService';
 import { Prenotazione, TipologiaRifiuto, Config } from './types';
