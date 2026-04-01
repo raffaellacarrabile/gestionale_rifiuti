@@ -58,6 +58,7 @@ import {
   updateConfig, 
   parseCSV 
 } from './services/storage';
+import { isSupabaseConfigured } from './lib/supabase';
 import { generaDocumentoWord } from './services/wordService';
 import { importaDaDocx } from './services/importService';
 import { Prenotazione, TipologiaRifiuto, Config } from './types';
@@ -119,8 +120,12 @@ export default function App() {
         ]);
         setDb(initialDb);
         setConfig(initialConfig);
+        if (isSupabaseConfigured) {
+          toast.success("Connesso a Supabase con successo!");
+        }
       } catch (error) {
         console.error('Failed to initialize data:', error);
+        toast.error("Errore nel caricamento dei dati. Controlla la connessione o le chiavi Supabase.");
       } finally {
         setLoading(false);
       }
@@ -409,7 +414,13 @@ export default function App() {
             </div>
             <div>
               <h1 className="font-bold text-lg leading-tight text-slate-800">Comune di Offida</h1>
-              <p className="text-[10px] uppercase tracking-widest text-emerald-600 font-bold">Gestione Ritiri</p>
+              <div className="flex items-center gap-2">
+                <p className="text-[10px] uppercase tracking-widest text-emerald-600 font-bold">Gestione Ritiri</p>
+                <div className={cn(
+                  "w-2 h-2 rounded-full",
+                  isSupabaseConfigured ? "bg-emerald-500 animate-pulse" : "bg-slate-300"
+                )} title={isSupabaseConfigured ? "Cloud Sincronizzato" : "Solo Locale"} />
+              </div>
             </div>
           </div>
 
@@ -965,6 +976,31 @@ export default function App() {
                       </div>
                       <input type="file" accept=".docx" className="hidden" onChange={handleImport} />
                     </label>
+                  </div>
+                </div>
+
+                <div className={cn(
+                  "p-8 rounded-[40px] border bg-white border-slate-200 shadow-xl"
+                )}>
+                  <h3 className="text-xl font-black mb-6 flex items-center gap-3 text-slate-800">
+                    <LayoutDashboard className="text-blue-600" size={24} />
+                    Stato Database Cloud (Supabase)
+                  </h3>
+                  <div className="flex items-center gap-4 p-4 rounded-3xl bg-slate-50 border border-slate-100">
+                    <div className={cn(
+                      "w-4 h-4 rounded-full animate-pulse",
+                      isSupabaseConfigured ? "bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.5)]" : "bg-slate-300"
+                    )} />
+                    <div>
+                      <p className="font-black text-slate-700 uppercase tracking-widest text-[10px]">
+                        {isSupabaseConfigured ? "Sincronizzazione Attiva" : "Sincronizzazione Disattivata"}
+                      </p>
+                      <p className="text-sm text-slate-500 font-medium">
+                        {isSupabaseConfigured 
+                          ? "I dati sono salvati in tempo reale sul cloud." 
+                          : "Configura le chiavi nelle impostazioni del progetto per attivare il cloud."}
+                      </p>
+                    </div>
                   </div>
                 </div>
 
