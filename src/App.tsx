@@ -1022,22 +1022,69 @@ export default function App() {
                     )}
 
                     {isSupabaseConfigured && (
-                      <button 
-                        onClick={async () => {
-                          const t = toast.loading("Test di connessione in corso...");
-                          try {
-                            const { data, error } = await supabase.from('prenotazioni').select('id').limit(1);
-                            if (error) throw error;
-                            toast.success("Connessione al database riuscita!", { id: t });
-                          } catch (err: any) {
-                            console.error(err);
-                            toast.error(`Errore database: ${err.message || "Verifica che le tabelle esistano"}`, { id: t });
-                          }
-                        }}
-                        className="w-full py-4 bg-slate-900 text-white font-black uppercase tracking-widest rounded-2xl transition-all hover:bg-slate-800 text-xs flex items-center justify-center gap-2"
-                      >
-                        <RefreshCw size={16} /> Test Connessione Database
-                      </button>
+                      <div className="space-y-3">
+                        <button 
+                          onClick={async () => {
+                            const t = toast.loading("Test di connessione in corso...");
+                            try {
+                              const { data, error } = await supabase.from('prenotazioni').select('id').limit(1);
+                              if (error) throw error;
+                              toast.success("Connessione al database riuscita!", { id: t });
+                            } catch (err: any) {
+                              console.error(err);
+                              toast.error(`Errore database: ${err.message || "Verifica che le tabelle esistano"}`, { id: t });
+                            }
+                          }}
+                          className="w-full py-4 bg-slate-900 text-white font-black uppercase tracking-widest rounded-2xl transition-all hover:bg-slate-800 text-xs flex items-center justify-center gap-2"
+                        >
+                          <RefreshCw size={16} /> Test Connessione Database
+                        </button>
+
+                        <button 
+                          onClick={async () => {
+                            const localDb = caricaDatabase();
+                            const localConfig = caricaConfig();
+                            
+                            if (localDb.length === 0 && localConfig.dateExtra.length === 0) {
+                              toast.error("Nessun dato locale trovato da sincronizzare.");
+                              return;
+                            }
+
+                            const t = toast.loading(`Sincronizzazione di ${localDb.length} record in corso...`);
+                            try {
+                              // Sincronizza Database
+                              const { error: dbError } = await supabase
+                                .from('prenotazioni')
+                                .upsert(localDb, { onConflict: 'id' });
+                              
+                              if (dbError) throw dbError;
+
+                              // Sincronizza Config
+                              const { error: configError } = await supabase
+                                .from('config')
+                                .upsert({ key: 'main_config', value: localConfig }, { onConflict: 'key' });
+
+                              if (configError) throw configError;
+
+                              toast.success("Sincronizzazione completata con successo!", { id: t });
+                              // Ricarica i dati per aggiornare la UI
+                              const updatedDb = await fetchDatabase();
+                              const updatedConfig = await fetchConfig();
+                              setAttive(updatedDb.filter(p => !p.dataRitiro.includes('2023'))); // Esempio filtro
+                              setConfig(updatedConfig);
+                            } catch (err: any) {
+                              console.error(err);
+                              toast.error(`Errore sincronizzazione: ${err.message}`, { id: t });
+                            }
+                          }}
+                          className="w-full py-4 bg-emerald-600 text-white font-black uppercase tracking-widest rounded-2xl transition-all hover:bg-emerald-700 text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20"
+                        >
+                          <Upload size={16} /> Sincronizza Dati Locali su Cloud
+                        </button>
+                        <p className="text-[10px] text-slate-400 text-center italic">
+                          Usa questo tasto per caricare i dati presenti su questo computer nel database Supabase.
+                        </p>
+                      </div>
                     )}
                   </div>
                 </div>
