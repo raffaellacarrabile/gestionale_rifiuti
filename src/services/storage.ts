@@ -116,6 +116,25 @@ export function salvaConfig(config: Config) {
   localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
 }
 
+// Generatore CSV per l'export (formato compatibile con il parser)
+export function generateCSV(db: Prenotazione[]): string {
+  const header = "DATA RITIRO;UTENTE;VIA;TELEFONO;MATERIALI;NOTE;TIPOLOGIA;DATA PRENOTAZIONE\n";
+  const rows = db.map(p => {
+    return [
+      p.dataRitiro,
+      p.utente,
+      p.via,
+      p.telefono,
+      `"${p.materiali.replace(/"/g, '""')}"`, // Gestione virgolette per materiali
+      p.note,
+      p.tipologia,
+      p.dataPrenotazione
+    ].join(';');
+  }).join('\n');
+  
+  return header + rows;
+}
+
 // Parser CSV specifico per il formato del Comune di Offida
 export function parseCSV(content: string): Prenotazione[] {
   const lines = content.split('\n').filter(line => line.trim() !== '');

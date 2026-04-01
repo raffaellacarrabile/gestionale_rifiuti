@@ -57,7 +57,10 @@ import {
   deleteFromDatabase,
   fetchConfig, 
   updateConfig, 
-  parseCSV 
+  parseCSV,
+  generateCSV,
+  caricaDatabase,
+  caricaConfig
 } from './services/storage';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
 import { generaDocumentoWord } from './services/wordService';
@@ -121,8 +124,38 @@ export default function App() {
         ]);
         setDb(initialDb);
         setConfig(initialConfig);
+        
         if (isSupabaseConfigured) {
           toast.success("Connesso a Supabase con successo!");
+          
+          // Sottoscrizione Real-time per tutte le tabelle in un unico canale
+          // Usiamo un nome univoco per evitare errori di re-sottoscrizione in React Strict Mode
+          const channelId = `realtime-sync-${Math.random().toString(36).substr(2, 9)}`;
+          const syncChannel = supabase
+            .channel(channelId)
+            .on(
+              'postgres_changes',
+              { event: '*', schema: 'public', table: 'prenotazioni' },
+              async (payload) => {
+                console.log('Cambio rilevato in prenotazioni:', payload);
+                const updatedDb = await fetchDatabase();
+                setDb(updatedDb);
+              }
+            )
+            .on(
+              'postgres_changes',
+              { event: '*', schema: 'public', table: 'config' },
+              async (payload) => {
+                console.log('Cambio rilevato in config:', payload);
+                const updatedConfig = await fetchConfig();
+                setConfig(updatedConfig);
+              }
+            )
+            .subscribe();
+
+          return () => {
+            supabase.removeChannel(syncChannel);
+          };
         }
       } catch (error) {
         console.error('Failed to initialize data:', error);
@@ -134,15 +167,8 @@ export default function App() {
     init();
   }, []);
 
-  useEffect(() => {
-    if (db.length > 0) {
-      updateDatabase(db);
-    }
-  }, [db]);
-
-  useEffect(() => {
-    updateConfig(config);
-  }, [config]);
+  // Rimosso l'auto-update massivo per evitare loop con il real-time
+  // Gli aggiornamenti ora avvengono puntualmente nelle funzioni handler
 
   const { attive, storico } = useMemo(() => separaDatabase(db), [db]);
   const dateDisponibili = useMemo(() => generaDateRitiro(config.dateExtra), [config.dateExtra]);
@@ -1086,6 +1112,33 @@ export default function App() {
                         </p>
                       </div>
                     )}
+
+                    <div className="pt-6 border-t border-slate-100">
+                      <p className="font-black text-slate-700 uppercase tracking-widest text-[10px] mb-4">
+                        Backup & Esportazione
+                      </p>
+                      <button 
+                        onClick={() => {
+                          if (db.length === 0) {
+                            toast.error("Nessun dato da esportare.");
+                            return;
+                          }
+                          const csvContent = generateCSV(db);
+                          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                          const url = URL.createObjectURL(blob);
+                          const link = document.createElement("a");
+                          link.setAttribute("href", url);
+                          link.setAttribute("download", `export_ritiri_${format(new Date(), 'yyyyMMdd_HHmm')}.csv`);
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                          toast.success("CSV esportato con successo!");
+                        }}
+                        className="w-full py-4 bg-white border-2 border-slate-100 text-slate-700 font-black uppercase tracking-widest rounded-2xl transition-all hover:bg-slate-50 text-xs flex items-center justify-center gap-2"
+                      >
+                        <FileText size={16} /> Esporta Database in CSV
+                      </button>
+                    </div>
                   </div>
                 </div>
 
