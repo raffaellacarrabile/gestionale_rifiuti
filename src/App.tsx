@@ -1096,7 +1096,7 @@ export default function App() {
                               // Ricarica i dati per aggiornare la UI
                               const updatedDb = await fetchDatabase();
                               const updatedConfig = await fetchConfig();
-                              setAttive(updatedDb.filter(p => !p.dataRitiro.includes('2023'))); // Esempio filtro
+                              setDb(updatedDb);
                               setConfig(updatedConfig);
                             } catch (err: any) {
                               console.error(err);
