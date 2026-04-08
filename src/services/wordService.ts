@@ -1,12 +1,18 @@
-import { Document, Packer, Paragraph, Table, TableRow, TableCell, WidthType, AlignmentType, TextRun, SectionType, BorderStyle, VerticalAlign, PageOrientation } from 'docx';
+import { Document, Packer, Paragraph, Table, TableRow, TableCell, WidthType, AlignmentType, TextRun, SectionType, BorderStyle, VerticalAlign, PageOrientation, Header, Footer, PageNumber } from 'docx';
 import { Prenotazione, TipologiaRifiuto } from '../types';
 import { saveAs } from 'file-saver';
 
 export async function generaDocumentoWord(prenotazioni: Prenotazione[], tipo: TipologiaRifiuto, data: string) {
+  const total = prenotazioni.length;
+  // Se ci sono più di 12 prenotazioni (2 pagine standard), passiamo alla modalità "Densa"
+  const isDense = total > 12;
+  const rowsPerPage = isDense ? 10 : 6;
+  const dataFontSize = isDense ? 24 : 32; // 12pt vs 16pt (half-points)
+  const rowHeight = isDense ? 800 : 1200;
+
   const chunks: Prenotazione[][] = [];
-  // Il modello PDF mostra 6 righe per pagina
-  for (let i = 0; i < prenotazioni.length; i += 6) {
-    chunks.push(prenotazioni.slice(i, i + 6));
+  for (let i = 0; i < prenotazioni.length; i += rowsPerPage) {
+    chunks.push(prenotazioni.slice(i, i + rowsPerPage));
   }
 
   // Paginazione minima
@@ -15,7 +21,7 @@ export async function generaDocumentoWord(prenotazioni: Prenotazione[], tipo: Ti
     chunks.push([]);
   }
 
-  const sections = chunks.map((chunk, index) => {
+  const sections = chunks.map((chunk) => {
     const headerRow = new TableRow({
       children: [
         new TableCell({ 
@@ -52,19 +58,19 @@ export async function generaDocumentoWord(prenotazioni: Prenotazione[], tipo: Ti
     });
 
     const dataRows = chunk.map(p => new TableRow({
-      height: { value: 1200, rule: "atLeast" }, // Righe alte come nel PDF
+      height: { value: rowHeight, rule: "atLeast" },
       children: [
-        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: p.dataPrenotazione?.split(' ')[0] || '', size: 22, font: "Calibri" })], alignment: AlignmentType.CENTER })], verticalAlign: VerticalAlign.CENTER }),
-        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: p.utente, size: 22, font: "Calibri" })], alignment: AlignmentType.LEFT })], verticalAlign: VerticalAlign.CENTER, margins: { left: 100 } }),
-        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: p.via, size: 22, font: "Calibri" })], alignment: AlignmentType.LEFT })], verticalAlign: VerticalAlign.CENTER, margins: { left: 100 } }),
-        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: p.telefono, size: 22, font: "Calibri" })], alignment: AlignmentType.CENTER })], verticalAlign: VerticalAlign.CENTER }),
-        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: p.tipologia, size: 22, font: "Calibri" })], alignment: AlignmentType.CENTER })], verticalAlign: VerticalAlign.CENTER }),
-        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: p.note || '', size: 22, font: "Calibri" })], alignment: AlignmentType.LEFT })], verticalAlign: VerticalAlign.CENTER, margins: { left: 100 } }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: p.dataPrenotazione?.split(' ')[0] || '', size: dataFontSize, font: "Calibri" })], alignment: AlignmentType.CENTER })], verticalAlign: VerticalAlign.CENTER }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: p.utente, size: dataFontSize, font: "Calibri" })], alignment: AlignmentType.LEFT })], verticalAlign: VerticalAlign.CENTER, margins: { left: 100 } }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: p.via, size: dataFontSize, font: "Calibri" })], alignment: AlignmentType.LEFT })], verticalAlign: VerticalAlign.CENTER, margins: { left: 100 } }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: p.telefono, size: dataFontSize, font: "Calibri" })], alignment: AlignmentType.CENTER })], verticalAlign: VerticalAlign.CENTER }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: p.tipologia, size: dataFontSize, font: "Calibri" })], alignment: AlignmentType.CENTER })], verticalAlign: VerticalAlign.CENTER }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: p.note || '', size: dataFontSize, font: "Calibri" })], alignment: AlignmentType.LEFT })], verticalAlign: VerticalAlign.CENTER, margins: { left: 100 } }),
       ],
     }));
 
-    const emptyRows = Array(Math.max(0, 6 - chunk.length)).fill(0).map(() => new TableRow({
-      height: { value: 1200, rule: "atLeast" },
+    const emptyRows = Array(Math.max(0, rowsPerPage - chunk.length)).fill(0).map(() => new TableRow({
+      height: { value: rowHeight, rule: "atLeast" },
       children: [
         new TableCell({ children: [new Paragraph("")] }),
         new TableCell({ children: [new Paragraph("")] }),
@@ -82,16 +88,42 @@ export async function generaDocumentoWord(prenotazioni: Prenotazione[], tipo: Ti
           size: {
             orientation: PageOrientation.LANDSCAPE,
           },
+          margin: {
+            top: 400,
+            bottom: 400,
+            left: 400,
+            right: 400,
+          },
         },
       },
-      children: [
-        new Paragraph({
+      headers: {
+        default: new Header({
           children: [
-            new TextRun({ text: `${tipo.toUpperCase()} – ${data}`, bold: true, size: 32, font: "Calibri" }),
+            new Paragraph({
+              children: [
+                new TextRun({ text: `${tipo.toUpperCase()} – ${data}`, bold: true, size: 24, font: "Calibri" }),
+              ],
+              alignment: AlignmentType.CENTER,
+              spacing: { after: 200 },
+            }),
           ],
-          alignment: AlignmentType.CENTER,
-          spacing: { after: 300 },
         }),
+      },
+      footers: {
+        default: new Footer({
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({
+                  children: ["Pagina ", PageNumber.CURRENT],
+                }),
+              ],
+              alignment: AlignmentType.RIGHT,
+            }),
+          ],
+        }),
+      },
+      children: [
         new Table({
           width: { size: 100, type: WidthType.PERCENTAGE },
           rows: [headerRow, ...dataRows, ...emptyRows],
@@ -103,13 +135,6 @@ export async function generaDocumentoWord(prenotazioni: Prenotazione[], tipo: Ti
             insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
             insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
           },
-        }),
-        new Paragraph({
-          children: [
-            new TextRun({ text: `${index + 1}`, size: 20 }),
-          ],
-          alignment: AlignmentType.RIGHT,
-          spacing: { before: 200 },
         }),
       ],
     };

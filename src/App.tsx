@@ -883,12 +883,10 @@ export default function App() {
                                     <thead>
                                       <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-400">
                                         <th className="p-3 w-8 border-r border-slate-200"></th>
+                                        <th className="p-3 border-r border-slate-200">Data Prenotazione</th>
                                         <th className="p-3 border-r border-slate-200">Utente</th>
                                         <th className="p-3 border-r border-slate-200">Via</th>
                                         <th className="p-3 border-r border-slate-200">Telefono</th>
-                                        <th className="p-3 border-r border-slate-200">Data Ritiro</th>
-                                        <th className="p-3 border-r border-slate-200">Tipologia</th>
-                                        <th className="p-3 border-r border-slate-200">Materiali</th>
                                         <th className="p-3 border-r border-slate-200">Note</th>
                                         <th className="p-3 w-10"></th>
                                       </tr>
@@ -1489,6 +1487,16 @@ const SortableRow: React.FC<SortableRowProps> = ({
         </button>
       </td>
       <td className="p-0 border-r border-slate-200">
+        <div className="relative min-w-[140px]">
+          <div className="invisible whitespace-nowrap p-3 font-bold">{p.dataPrenotazione || ' '}</div>
+          <input 
+            value={p.dataPrenotazione || ''} 
+            onChange={(e) => handleUpdateField(p.id, 'dataPrenotazione', e.target.value)}
+            className="absolute inset-0 w-full h-full bg-transparent p-3 text-slate-600 font-bold focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30"
+          />
+        </div>
+      </td>
+      <td className="p-0 border-r border-slate-200">
         <div className="relative min-w-[120px]">
           <div className="invisible whitespace-pre-wrap p-3 font-bold break-words">{p.utente || ' '}</div>
           <textarea 
@@ -1521,48 +1529,7 @@ const SortableRow: React.FC<SortableRowProps> = ({
         </div>
       </td>
       <td className="p-0 border-r border-slate-200">
-        <div className="relative min-w-[130px]">
-          <div className="invisible whitespace-nowrap p-3 font-bold">{p.dataRitiro || ' '}</div>
-          <select 
-            value={p.dataRitiro || ''}
-            onChange={(e) => handleUpdateField(p.id, 'dataRitiro', e.target.value)}
-            className="absolute inset-0 w-full h-full bg-transparent p-3 text-slate-600 font-bold focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30 appearance-none"
-          >
-            {dateDisponibili.map(d => (
-              <option key={d} value={d}>{d}</option>
-            ))}
-          </select>
-        </div>
-      </td>
-      <td className="p-0 border-r border-slate-200">
-        <div className="relative min-w-[120px]">
-          <div className="invisible whitespace-nowrap p-3 font-black text-[10px] uppercase tracking-widest">{p.tipologia || ' '}</div>
-          <select 
-            value={p.tipologia || ''}
-            onChange={(e) => handleUpdateField(p.id, 'tipologia', e.target.value)}
-            className={cn(
-              "absolute inset-0 w-full h-full bg-transparent p-3 font-black text-[10px] uppercase tracking-widest focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30 appearance-none",
-              p.tipologia === 'Ingombranti' ? "text-blue-600" : "text-emerald-600"
-            )}
-          >
-            <option value="Ingombranti">Ingombranti</option>
-            <option value="Potature">Potature</option>
-          </select>
-        </div>
-      </td>
-      <td className="p-0 border-r border-slate-200">
         <div className="relative min-w-[200px]">
-          <div className="invisible whitespace-pre-wrap p-3 font-medium break-words">{p.materiali || ' '}</div>
-          <textarea 
-            value={p.materiali || ''} 
-            onChange={(e) => handleUpdateField(p.id, 'materiali', e.target.value)}
-            rows={1}
-            className="absolute inset-0 w-full h-full bg-transparent p-3 text-slate-600 font-medium focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30 resize-none overflow-hidden"
-          />
-        </div>
-      </td>
-      <td className="p-0 border-r border-slate-200">
-        <div className="relative min-w-[150px]">
           <div className="invisible whitespace-pre-wrap p-3 italic font-medium break-words">{p.note || ' '}</div>
           <textarea 
             value={p.note || ''} 
