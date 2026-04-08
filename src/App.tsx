@@ -202,14 +202,20 @@ export default function App() {
       for (const d of dateDisponibili) {
         if (d === "Data Extra") continue;
         const dateObj = parseDate(d);
+        // Cerchiamo la prima data disponibile nel futuro (mese successivo o oltre)
         if (dateObj.getFullYear() > currentYear || (dateObj.getFullYear() === currentYear && dateObj.getMonth() > currentMonth)) {
           const count = contaPrenotazioni(db, d, tipo);
           if (count < LIMITI[tipo]) {
-            return format(dateObj, 'MMMM yyyy', { locale: it });
+            return {
+              label: format(dateObj, 'MMMM yyyy', { locale: it }),
+              date: d,
+              count: count,
+              limit: LIMITI[tipo]
+            };
           }
         }
       }
-      return "Prossimo mese non ancora disponibile";
+      return null;
     };
 
     return {
@@ -562,6 +568,16 @@ export default function App() {
               onClick={() => setActiveTab('settings')} 
             />
           </nav>
+
+          <div className="mt-auto pt-6 border-t border-slate-100">
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Versione App</span>
+                <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">v2.0.4</span>
+              </div>
+              <p className="text-[9px] text-slate-400 font-medium leading-tight">Comune di Offida • Gold Edition</p>
+            </div>
+          </div>
         </div>
       </aside>
 
@@ -613,47 +629,65 @@ export default function App() {
                       <Calendar size={28} />
                     </div>
                     <p className="text-[11px] font-black uppercase tracking-widest text-slate-500 mb-1">Totale Ritiri Attivi</p>
-                    <p className="text-4xl font-black text-white">{attive.length}</p>
-                    <div className="mt-4 flex items-center gap-2 text-xs font-bold text-blue-400">
-                      <span>Prossimo: {dateDisponibili[0]}</span>
-                      <ArrowRight size={14} />
+                    <p className="text-5xl font-black text-white">{attive.length}</p>
+                    <div className="mt-6 space-y-3">
+                      <div className="flex items-center justify-between text-xs font-bold">
+                        <span className="text-slate-400 uppercase tracking-tight">Ingombranti</span>
+                        <span className="text-blue-400">{attive.filter(p => p.tipologia === 'Ingombranti').length}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs font-bold">
+                        <span className="text-slate-400 uppercase tracking-tight">Potature</span>
+                        <span className="text-emerald-400">{attive.filter(p => p.tipologia === 'Potature').length}</span>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="p-8 rounded-[40px] bg-slate-900 border border-slate-800 shadow-xl hover:shadow-blue-500/5 transition-all group">
-                    <div className="w-14 h-14 bg-blue-600/10 text-blue-400 rounded-2xl flex items-center justify-center mb-6 border border-blue-600/20">
-                      <LayoutDashboard size={28} />
-                    </div>
-                    <p className="text-[11px] font-black uppercase tracking-widest text-slate-500 mb-1">Ingombranti</p>
-                    <div className="flex items-center gap-6">
-                      <p className="text-5xl font-black text-white">{attive.filter(p => p.tipologia === 'Ingombranti').length}</p>
-                      <div className="flex-1 h-4 bg-slate-800 rounded-full overflow-hidden border border-slate-700/50">
-                        <motion.div 
-                          initial={{ width: 0 }}
-                          animate={{ width: `${(attive.filter(p => p.tipologia === 'Ingombranti').length / (LIMITI.Ingombranti)) * 100}%` }}
-                          className="h-full bg-gradient-to-r from-blue-600 to-blue-400 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.4)]" 
-                        />
+                  <div className="p-8 rounded-[40px] bg-slate-900 border border-slate-800 shadow-xl hover:shadow-blue-500/5 transition-all group flex gap-6">
+                    <div className="flex-1">
+                      <div className="w-14 h-14 bg-blue-600/10 text-blue-400 rounded-2xl flex items-center justify-center mb-6 border border-blue-600/20">
+                        <LayoutDashboard size={28} />
+                      </div>
+                      <p className="text-[11px] font-black uppercase tracking-widest text-slate-500 mb-1">Passiamo a (Ingombranti)</p>
+                      <p className="text-2xl font-black text-white leading-tight capitalize">{nextMonthInfo.Ingombranti?.label || 'N/D'}</p>
+                      <div className="mt-4">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Stato Prenotazioni</p>
+                        <p className="text-xl font-black text-blue-400">{nextMonthInfo.Ingombranti?.count || 0} / {nextMonthInfo.Ingombranti?.limit || 0}</p>
                       </div>
                     </div>
-                    <p className="text-[10px] font-bold text-blue-400 mt-3 uppercase tracking-tight">Passiamo a: {nextMonthInfo.Ingombranti}</p>
+                    <div className="w-12 flex flex-col items-center gap-3">
+                      <div className="flex-1 w-4 bg-slate-800 rounded-full overflow-hidden border border-slate-700/50 flex flex-col justify-end">
+                        <motion.div 
+                          initial={{ height: 0 }}
+                          animate={{ height: `${((nextMonthInfo.Ingombranti?.count || 0) / (nextMonthInfo.Ingombranti?.limit || 1)) * 100}%` }}
+                          className="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.4)]" 
+                        />
+                      </div>
+                      <span className="text-[10px] font-black text-slate-500 uppercase vertical-text">Capacità</span>
+                    </div>
                   </div>
 
-                  <div className="p-8 rounded-[40px] bg-slate-900 border border-slate-800 shadow-xl hover:shadow-emerald-500/5 transition-all group">
-                    <div className="w-14 h-14 bg-emerald-600/10 text-emerald-400 rounded-2xl flex items-center justify-center mb-6 border border-emerald-600/20">
-                      <Leaf size={28} />
-                    </div>
-                    <p className="text-[11px] font-black uppercase tracking-widest text-slate-500 mb-1">Potature</p>
-                    <div className="flex items-center gap-6">
-                      <p className="text-5xl font-black text-white">{attive.filter(p => p.tipologia === 'Potature').length}</p>
-                      <div className="flex-1 h-4 bg-slate-800 rounded-full overflow-hidden border border-slate-700/50">
-                        <motion.div 
-                          initial={{ width: 0 }}
-                          animate={{ width: `${(attive.filter(p => p.tipologia === 'Potature').length / (LIMITI.Potature)) * 100}%` }}
-                          className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.4)]" 
-                        />
+                  <div className="p-8 rounded-[40px] bg-slate-900 border border-slate-800 shadow-xl hover:shadow-emerald-500/5 transition-all group flex gap-6">
+                    <div className="flex-1">
+                      <div className="w-14 h-14 bg-emerald-600/10 text-emerald-400 rounded-2xl flex items-center justify-center mb-6 border border-emerald-600/20">
+                        <Leaf size={28} />
+                      </div>
+                      <p className="text-[11px] font-black uppercase tracking-widest text-slate-500 mb-1">Passiamo a (Potature)</p>
+                      <p className="text-2xl font-black text-white leading-tight capitalize">{nextMonthInfo.Potature?.label || 'N/D'}</p>
+                      <div className="mt-4">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Stato Prenotazioni</p>
+                        <p className="text-xl font-black text-emerald-400">{nextMonthInfo.Potature?.count || 0} / {nextMonthInfo.Potature?.limit || 0}</p>
                       </div>
                     </div>
-                    <p className="text-[10px] font-bold text-emerald-400 mt-3 uppercase tracking-tight">Passiamo a: {nextMonthInfo.Potature}</p>
+                    <div className="w-12 flex flex-col items-center gap-3">
+                      <div className="flex-1 w-4 bg-slate-800 rounded-full overflow-hidden border border-slate-700/50 flex flex-col justify-end">
+                        <motion.div 
+                          initial={{ height: 0 }}
+                          animate={{ height: `${((nextMonthInfo.Potature?.count || 0) / (nextMonthInfo.Potature?.limit || 1)) * 100}%` }}
+                          className="w-full bg-gradient-to-t from-emerald-600 to-emerald-400 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.4)]" 
+                        />
+                      </div>
+                      <span className="text-[10px] font-black text-slate-500 uppercase vertical-text">Capacità</span>
+                    </div>
                   </div>
                 </div>
 
