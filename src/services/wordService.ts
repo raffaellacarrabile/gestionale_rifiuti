@@ -19,32 +19,32 @@ export async function generaDocumentoWord(prenotazioni: Prenotazione[], tipo: Ti
     const headerRow = new TableRow({
       children: [
         new TableCell({ 
-          children: [new Paragraph({ children: [new TextRun({ text: "DATA PRENOT.NE", bold: true, size: 18 })], alignment: AlignmentType.CENTER })],
+          children: [new Paragraph({ children: [new TextRun({ text: "DATA PRENOT.NE", bold: true, size: 24, font: "Calibri" })], alignment: AlignmentType.CENTER })],
           verticalAlign: VerticalAlign.CENTER,
           width: { size: 12, type: WidthType.PERCENTAGE }
         }),
         new TableCell({ 
-          children: [new Paragraph({ children: [new TextRun({ text: "UTENTE", bold: true, size: 18 })], alignment: AlignmentType.CENTER })],
+          children: [new Paragraph({ children: [new TextRun({ text: "UTENTE", bold: true, size: 24, font: "Calibri" })], alignment: AlignmentType.CENTER })],
           verticalAlign: VerticalAlign.CENTER,
           width: { size: 18, type: WidthType.PERCENTAGE }
         }),
         new TableCell({ 
-          children: [new Paragraph({ children: [new TextRun({ text: "VIA", bold: true, size: 18 })], alignment: AlignmentType.CENTER })],
+          children: [new Paragraph({ children: [new TextRun({ text: "VIA", bold: true, size: 24, font: "Calibri" })], alignment: AlignmentType.CENTER })],
           verticalAlign: VerticalAlign.CENTER,
           width: { size: 20, type: WidthType.PERCENTAGE }
         }),
         new TableCell({ 
-          children: [new Paragraph({ children: [new TextRun({ text: "TELEFONO", bold: true, size: 18 })], alignment: AlignmentType.CENTER })],
+          children: [new Paragraph({ children: [new TextRun({ text: "TELEFONO", bold: true, size: 24, font: "Calibri" })], alignment: AlignmentType.CENTER })],
           verticalAlign: VerticalAlign.CENTER,
           width: { size: 15, type: WidthType.PERCENTAGE }
         }),
         new TableCell({ 
-          children: [new Paragraph({ children: [new TextRun({ text: "TIPOLOGIA RIFUTO", bold: true, size: 18 })], alignment: AlignmentType.CENTER })],
+          children: [new Paragraph({ children: [new TextRun({ text: "TIPOLOGIA RIFUTO", bold: true, size: 24, font: "Calibri" })], alignment: AlignmentType.CENTER })],
           verticalAlign: VerticalAlign.CENTER,
           width: { size: 15, type: WidthType.PERCENTAGE }
         }),
         new TableCell({ 
-          children: [new Paragraph({ children: [new TextRun({ text: "NOTE", bold: true, size: 18 })], alignment: AlignmentType.CENTER })],
+          children: [new Paragraph({ children: [new TextRun({ text: "NOTE", bold: true, size: 24, font: "Calibri" })], alignment: AlignmentType.CENTER })],
           verticalAlign: VerticalAlign.CENTER,
           width: { size: 20, type: WidthType.PERCENTAGE }
         }),
@@ -54,12 +54,12 @@ export async function generaDocumentoWord(prenotazioni: Prenotazione[], tipo: Ti
     const dataRows = chunk.map(p => new TableRow({
       height: { value: 1200, rule: "atLeast" }, // Righe alte come nel PDF
       children: [
-        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: p.dataPrenotazione?.split(' ')[0] || '', size: 18 })], alignment: AlignmentType.CENTER })], verticalAlign: VerticalAlign.CENTER }),
-        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: p.utente, size: 18 })], alignment: AlignmentType.LEFT })], verticalAlign: VerticalAlign.CENTER, margins: { left: 100 } }),
-        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: p.via, size: 18 })], alignment: AlignmentType.LEFT })], verticalAlign: VerticalAlign.CENTER, margins: { left: 100 } }),
-        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: p.telefono, size: 18 })], alignment: AlignmentType.CENTER })], verticalAlign: VerticalAlign.CENTER }),
-        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: p.tipologia, size: 18 })], alignment: AlignmentType.CENTER })], verticalAlign: VerticalAlign.CENTER }),
-        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: p.note || '', size: 18 })], alignment: AlignmentType.LEFT })], verticalAlign: VerticalAlign.CENTER, margins: { left: 100 } }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: p.dataPrenotazione?.split(' ')[0] || '', size: 22, font: "Calibri" })], alignment: AlignmentType.CENTER })], verticalAlign: VerticalAlign.CENTER }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: p.utente, size: 22, font: "Calibri" })], alignment: AlignmentType.LEFT })], verticalAlign: VerticalAlign.CENTER, margins: { left: 100 } }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: p.via, size: 22, font: "Calibri" })], alignment: AlignmentType.LEFT })], verticalAlign: VerticalAlign.CENTER, margins: { left: 100 } }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: p.telefono, size: 22, font: "Calibri" })], alignment: AlignmentType.CENTER })], verticalAlign: VerticalAlign.CENTER }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: p.tipologia, size: 22, font: "Calibri" })], alignment: AlignmentType.CENTER })], verticalAlign: VerticalAlign.CENTER }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: p.note || '', size: 22, font: "Calibri" })], alignment: AlignmentType.LEFT })], verticalAlign: VerticalAlign.CENTER, margins: { left: 100 } }),
       ],
     }));
 
@@ -87,7 +87,7 @@ export async function generaDocumentoWord(prenotazioni: Prenotazione[], tipo: Ti
       children: [
         new Paragraph({
           children: [
-            new TextRun({ text: `${tipo.toUpperCase()} – ${data}`, bold: true, size: 24 }),
+            new TextRun({ text: `${tipo.toUpperCase()} – ${data}`, bold: true, size: 32, font: "Calibri" }),
           ],
           alignment: AlignmentType.CENTER,
           spacing: { after: 300 },
