@@ -106,7 +106,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [realtimeStatus, setRealtimeStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'prenota' | 'attive' | 'storico' | 'settings'>('prenota');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'prenota' | 'attive' | 'storico' | 'settings'>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -192,6 +192,44 @@ export default function App() {
 
   const { attive, storico } = useMemo(() => separaDatabase(db), [db]);
   const dateDisponibili = useMemo(() => generaDateRitiro(config.dateExtra), [config.dateExtra]);
+
+  const nextMonthInfo = useMemo(() => {
+    const getNext = (tipo: TipologiaRifiuto) => {
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+      
+      for (const d of dateDisponibili) {
+        if (d === "Data Extra") continue;
+        const dateObj = parseDate(d);
+        if (dateObj.getFullYear() > currentYear || (dateObj.getFullYear() === currentYear && dateObj.getMonth() > currentMonth)) {
+          const count = contaPrenotazioni(db, d, tipo);
+          if (count < LIMITI[tipo]) {
+            return format(dateObj, 'MMMM yyyy', { locale: it });
+          }
+        }
+      }
+      return "Prossimo mese non ancora disponibile";
+    };
+
+    return {
+      Ingombranti: getNext('Ingombranti'),
+      Potature: getNext('Potature')
+    };
+  }, [db, dateDisponibili]);
+
+  const recentActivity = useMemo(() => {
+    return [...attive].sort((a, b) => {
+      const parseFullDate = (s: string | undefined) => {
+        if (!s) return 0;
+        const [date, time] = s.split(' ');
+        const [d, m, y] = date.split('/').map(Number);
+        const [h, min] = time.split(':').map(Number);
+        return new Date(y, m - 1, d, h, min).getTime();
+      };
+      return parseFullDate(b.dataPrenotazione) - parseFullDate(a.dataPrenotazione);
+    }).slice(0, 8);
+  }, [attive]);
 
   // Selezione automatica prima data disponibile
   useEffect(() => {
@@ -552,97 +590,108 @@ export default function App() {
                 exit={{ opacity: 0, y: -20 }}
                 className="space-y-8"
               >
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-4">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-4">
                   <div>
                     <h2 className="text-4xl font-black tracking-tighter text-slate-900">Dashboard Overview</h2>
                     <p className="text-slate-400 font-medium">Riepilogo delle prenotazioni attive e stato del sistema.</p>
                   </div>
-                  <div className="flex gap-3">
-                    <div className="px-4 py-2 bg-white border border-slate-200 rounded-2xl shadow-sm flex items-center gap-2">
-                      <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                      <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">Sistema Online</span>
-                    </div>
-                  </div>
+                  <motion.button 
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setActiveTab('prenota')}
+                    className="px-8 py-5 bg-emerald-600 text-white font-black rounded-[24px] shadow-xl shadow-emerald-600/30 flex items-center gap-3 hover:bg-emerald-700 transition-all text-sm uppercase tracking-widest"
+                  >
+                    <PlusCircle size={24} />
+                    Registra Nuovo Ritiro
+                  </motion.button>
                 </div>
 
                 {/* Overview Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="p-8 rounded-[40px] bg-white border border-slate-200 shadow-sm hover:shadow-xl transition-all group">
-                    <div className="w-14 h-14 bg-blue-500/10 text-blue-600 rounded-2xl flex items-center justify-center mb-6 border border-blue-500/20">
+                  <div className="p-8 rounded-[40px] bg-slate-900 border border-slate-800 shadow-xl hover:shadow-emerald-500/5 transition-all group">
+                    <div className="w-14 h-14 bg-blue-500/10 text-blue-400 rounded-2xl flex items-center justify-center mb-6 border border-blue-500/20">
                       <Calendar size={28} />
                     </div>
-                    <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-1">Totale Ritiri Attivi</p>
-                    <p className="text-4xl font-black text-slate-900">{attive.length}</p>
-                    <div className="mt-4 flex items-center gap-2 text-xs font-bold text-blue-600">
+                    <p className="text-[11px] font-black uppercase tracking-widest text-slate-500 mb-1">Totale Ritiri Attivi</p>
+                    <p className="text-4xl font-black text-white">{attive.length}</p>
+                    <div className="mt-4 flex items-center gap-2 text-xs font-bold text-blue-400">
                       <span>Prossimo: {dateDisponibili[0]}</span>
                       <ArrowRight size={14} />
                     </div>
                   </div>
 
-                  <div className="p-8 rounded-[40px] bg-white border border-slate-200 shadow-sm hover:shadow-xl transition-all group">
-                    <div className="w-14 h-14 bg-emerald-500/10 text-emerald-600 rounded-2xl flex items-center justify-center mb-6 border border-emerald-500/20">
+                  <div className="p-8 rounded-[40px] bg-slate-900 border border-slate-800 shadow-xl hover:shadow-blue-500/5 transition-all group">
+                    <div className="w-14 h-14 bg-blue-600/10 text-blue-400 rounded-2xl flex items-center justify-center mb-6 border border-blue-600/20">
                       <LayoutDashboard size={28} />
                     </div>
-                    <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-1">Ingombranti</p>
-                    <p className="text-4xl font-black text-slate-900">{attive.filter(p => p.tipologia === 'Ingombranti').length}</p>
-                    <div className="mt-4 h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-blue-500 rounded-full" 
-                        style={{ width: `${(attive.filter(p => p.tipologia === 'Ingombranti').length / (attive.length || 1)) * 100}%` }} 
-                      />
+                    <p className="text-[11px] font-black uppercase tracking-widest text-slate-500 mb-1">Ingombranti</p>
+                    <div className="flex items-center gap-6">
+                      <p className="text-5xl font-black text-white">{attive.filter(p => p.tipologia === 'Ingombranti').length}</p>
+                      <div className="flex-1 h-4 bg-slate-800 rounded-full overflow-hidden border border-slate-700/50">
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          animate={{ width: `${(attive.filter(p => p.tipologia === 'Ingombranti').length / (LIMITI.Ingombranti)) * 100}%` }}
+                          className="h-full bg-gradient-to-r from-blue-600 to-blue-400 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.4)]" 
+                        />
+                      </div>
                     </div>
+                    <p className="text-[10px] font-bold text-blue-400 mt-3 uppercase tracking-tight">Passiamo a: {nextMonthInfo.Ingombranti}</p>
                   </div>
 
-                  <div className="p-8 rounded-[40px] bg-white border border-slate-200 shadow-sm hover:shadow-xl transition-all group">
-                    <div className="w-14 h-14 bg-emerald-500/10 text-emerald-600 rounded-2xl flex items-center justify-center mb-6 border border-emerald-500/20">
+                  <div className="p-8 rounded-[40px] bg-slate-900 border border-slate-800 shadow-xl hover:shadow-emerald-500/5 transition-all group">
+                    <div className="w-14 h-14 bg-emerald-600/10 text-emerald-400 rounded-2xl flex items-center justify-center mb-6 border border-emerald-600/20">
                       <Leaf size={28} />
                     </div>
-                    <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-1">Potature</p>
-                    <p className="text-4xl font-black text-slate-900">{attive.filter(p => p.tipologia === 'Potature').length}</p>
-                    <div className="mt-4 h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-emerald-500 rounded-full" 
-                        style={{ width: `${(attive.filter(p => p.tipologia === 'Potature').length / (attive.length || 1)) * 100}%` }} 
-                      />
+                    <p className="text-[11px] font-black uppercase tracking-widest text-slate-500 mb-1">Potature</p>
+                    <div className="flex items-center gap-6">
+                      <p className="text-5xl font-black text-white">{attive.filter(p => p.tipologia === 'Potature').length}</p>
+                      <div className="flex-1 h-4 bg-slate-800 rounded-full overflow-hidden border border-slate-700/50">
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          animate={{ width: `${(attive.filter(p => p.tipologia === 'Potature').length / (LIMITI.Potature)) * 100}%` }}
+                          className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.4)]" 
+                        />
+                      </div>
                     </div>
+                    <p className="text-[10px] font-bold text-emerald-400 mt-3 uppercase tracking-tight">Passiamo a: {nextMonthInfo.Potature}</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                   {/* Recent Activity */}
-                  <div className="lg:col-span-2 p-10 rounded-[48px] bg-white border border-slate-200 shadow-sm">
-                    <h3 className="text-2xl font-black tracking-tighter text-slate-900 mb-6">Ultime Prenotazioni Attive</h3>
+                  <div className="lg:col-span-2 p-10 rounded-[48px] bg-slate-900 border border-slate-800 shadow-2xl">
+                    <h3 className="text-2xl font-black tracking-tighter text-white mb-6">Cronologia Inserimenti</h3>
                     <div className="space-y-4">
-                      {attive.slice(0, 5).map((p) => (
-                        <div key={p.id} className="flex items-center justify-between p-5 rounded-3xl bg-slate-50 border border-slate-100 hover:border-emerald-200 transition-all group">
+                      {recentActivity.map((p) => (
+                        <div key={p.id} className="flex items-center justify-between p-5 rounded-3xl bg-slate-800/50 border border-slate-700/50 hover:border-emerald-500/50 transition-all group">
                           <div className="flex items-center gap-4">
                             <div className={cn(
-                              "w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm",
-                              p.tipologia === 'Ingombranti' ? "bg-blue-100 text-blue-600" : "bg-emerald-100 text-emerald-600"
+                              "w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg",
+                              p.tipologia === 'Ingombranti' ? "bg-blue-600 text-white shadow-blue-600/20" : "bg-emerald-600 text-white shadow-emerald-600/20"
                             )}>
                               {p.tipologia === 'Ingombranti' ? <LayoutDashboard size={20} /> : <Leaf size={20} />}
                             </div>
                             <div>
-                              <p className="font-bold text-slate-800">{p.utente || 'N/D'}</p>
+                              <p className="font-bold text-white">{p.utente || 'N/D'}</p>
                               <p className="text-xs text-slate-400 font-medium">{p.via || 'N/D'} • {p.telefono || 'N/D'}</p>
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="text-sm font-black text-slate-900">{p.dataRitiro}</p>
-                            <p className="text-[10px] uppercase tracking-widest font-bold text-slate-400">{p.tipologia}</p>
+                            <p className="text-xs font-black text-emerald-400">{p.dataPrenotazione}</p>
+                            <p className="text-[10px] uppercase tracking-widest font-bold text-slate-500">Ritiro: {p.dataRitiro}</p>
                           </div>
                         </div>
                       ))}
                       {attive.length === 0 && (
                         <div className="py-20 text-center">
-                          <p className="text-slate-400 font-medium">Nessuna prenotazione attiva al momento.</p>
+                          <p className="text-slate-500 font-medium">Nessuna prenotazione attiva al momento.</p>
                         </div>
                       )}
                     </div>
                     {attive.length > 5 && (
                       <button 
                         onClick={() => setActiveTab('attive')}
-                        className="mt-6 w-full py-4 border-2 border-dashed border-slate-200 rounded-3xl text-slate-400 font-bold hover:border-emerald-300 hover:text-emerald-600 transition-all"
+                        className="mt-6 w-full py-4 border-2 border-dashed border-slate-700 rounded-3xl text-slate-500 font-bold hover:border-emerald-500 hover:text-emerald-400 transition-all"
                       >
                         Visualizza tutte le {attive.length} prenotazioni
                       </button>
@@ -651,28 +700,26 @@ export default function App() {
 
                   {/* Quick Actions */}
                   <div className="space-y-6">
-                    <div className="p-8 rounded-[40px] bg-emerald-600 text-white shadow-xl shadow-emerald-600/20 relative overflow-hidden group">
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 blur-3xl rounded-full -mr-16 -mt-16 group-hover:bg-white/20 transition-all" />
-                      <h3 className="text-xl font-black mb-2 relative z-10">Nuovo Ritiro</h3>
-                      <p className="text-emerald-100 text-sm mb-6 relative z-10">Inserisci velocemente una nuova prenotazione nel sistema.</p>
-                      <button 
-                        onClick={() => setActiveTab('prenota')}
-                        className="w-full py-4 bg-white text-emerald-600 font-black rounded-2xl shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all relative z-10"
-                      >
-                        VAI AL FORM
-                      </button>
-                    </div>
-
-                    <div className="p-8 rounded-[40px] bg-slate-900 text-white shadow-xl shadow-slate-900/20 relative overflow-hidden group">
+                    <div className="p-8 rounded-[40px] bg-slate-900 border border-slate-800 text-white shadow-2xl relative overflow-hidden group">
                       <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-500/10 blur-3xl rounded-full -ml-16 -mb-16 group-hover:bg-blue-500/20 transition-all" />
                       <h3 className="text-xl font-black mb-2 relative z-10">Configurazione</h3>
                       <p className="text-slate-400 text-sm mb-6 relative z-10">Gestisci le date extra e i materiali vietati.</p>
                       <button 
                         onClick={() => setActiveTab('settings')}
-                        className="w-full py-4 bg-slate-800 text-white font-black rounded-2xl shadow-lg hover:bg-slate-700 transition-all relative z-10"
+                        className="w-full py-4 bg-slate-800 text-white font-black rounded-2xl shadow-lg hover:bg-slate-700 transition-all relative z-10 border border-slate-700"
                       >
                         IMPOSTAZIONI
                       </button>
+                    </div>
+
+                    <div className="p-8 rounded-[40px] bg-gradient-to-br from-emerald-600 to-emerald-800 text-white shadow-xl shadow-emerald-900/20 relative overflow-hidden group">
+                       <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 blur-3xl rounded-full -mr-16 -mt-16" />
+                       <h3 className="text-xl font-black mb-1">Supporto</h3>
+                       <p className="text-emerald-100/70 text-xs mb-4">Hai bisogno di aiuto con la gestione?</p>
+                       <div className="flex items-center gap-2 text-xs font-bold bg-white/10 w-fit px-3 py-1 rounded-full border border-white/10">
+                         <RefreshCw size={12} className="animate-spin-slow" />
+                         Realtime Sync Attivo
+                       </div>
                     </div>
                   </div>
                 </div>
