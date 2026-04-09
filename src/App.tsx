@@ -44,6 +44,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { 
+  parseFullDate,
   generaDateRitiro, 
   separaDatabase, 
   validaMateriali, 
@@ -132,7 +133,9 @@ export default function App() {
           fetchDatabase(),
           fetchConfig()
         ]);
-        setDb(initialDb);
+        // Default sorting by dataPrenotazione on load
+        const sortedDb = initialDb.sort((a, b) => parseFullDate(b.dataPrenotazione) - parseFullDate(a.dataPrenotazione));
+        setDb(sortedDb);
         setConfig(initialConfig);
         
         if (isSupabaseConfigured) {
@@ -225,16 +228,7 @@ export default function App() {
   }, [db, dateDisponibili]);
 
   const recentActivity = useMemo(() => {
-    return [...attive].sort((a, b) => {
-      const parseFullDate = (s: string | undefined) => {
-        if (!s) return 0;
-        const [date, time] = s.split(' ');
-        const [d, m, y] = date.split('/').map(Number);
-        const [h, min] = time.split(':').map(Number);
-        return new Date(y, m - 1, d, h, min).getTime();
-      };
-      return parseFullDate(b.dataPrenotazione) - parseFullDate(a.dataPrenotazione);
-    }).slice(0, 8);
+    return [...attive].sort((a, b) => parseFullDate(b.dataPrenotazione) - parseFullDate(a.dataPrenotazione)).slice(0, 8);
   }, [attive]);
 
   // Selezione automatica prima data disponibile
@@ -451,15 +445,25 @@ export default function App() {
     const { active, over } = event;
     
     if (over && active.id !== over.id) {
-      const oldIndex = attive.findIndex(p => p.id === active.id);
-      const newIndex = attive.findIndex(p => p.id === over.id);
+      const targetList = activeTab === 'attive' ? attive : storico;
+      const otherList = activeTab === 'attive' ? storico : attive;
       
-      const newAttive = arrayMove(attive, oldIndex, newIndex);
-      // Reconstruct the full database preserving the new order of active bookings
-      const newDb = [...newAttive, ...storico];
+      const oldIndex = targetList.findIndex(p => p.id === active.id);
+      const newIndex = targetList.findIndex(p => p.id === over.id);
+      
+      const newTargetList = arrayMove(targetList, oldIndex, newIndex);
+      // Reconstruct the full database preserving the new order
+      const newDb = activeTab === 'attive' ? [...newTargetList, ...otherList] : [...otherList, ...newTargetList];
       setDb(newDb);
       updateDatabase(newDb);
     }
+  };
+
+  const handleResetOrder = () => {
+    const sortedDb = [...db].sort((a, b) => parseFullDate(b.dataPrenotazione) - parseFullDate(a.dataPrenotazione));
+    setDb(sortedDb);
+    updateDatabase(sortedDb);
+    toast.success("Ordine ripristinato per data prenotazione.");
   };
 
   const chartData = useMemo(() => {
@@ -921,6 +925,13 @@ export default function App() {
                     >
                       <Download size={14} /> Export Tutte Potature
                     </button>
+                    <button 
+                      onClick={handleResetOrder}
+                      className="px-4 py-2 bg-slate-200 text-slate-700 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-300 transition-all flex items-center gap-2"
+                      title="Ripristina l'ordine cronologico di prenotazione"
+                    >
+                      <RefreshCw size={14} /> Ripristina Ordine
+                    </button>
                   </div>
                 </div>
 
@@ -969,6 +980,7 @@ export default function App() {
                                         <th className="p-3 border-r border-slate-200">Utente</th>
                                         <th className="p-3 border-r border-slate-200">Via</th>
                                         <th className="p-3 border-r border-slate-200">Telefono</th>
+                                        <th className="p-3 border-r border-slate-200">Materiali</th>
                                         <th className="p-3 border-r border-slate-200">Note</th>
                                         <th className="p-3 w-10"></th>
                                       </tr>
@@ -1019,62 +1031,90 @@ export default function App() {
                 <div className="flex justify-between items-end">
                   <div>
                     <h2 className="text-3xl font-black tracking-tighter text-slate-900">Storico Prenotazioni</h2>
-                    <p className="text-slate-400 font-medium">Archivio dei ritiri completati.</p>
+                    <p className="text-slate-400 font-medium">Archivio dei ritiri completati. Puoi riordinare o spostare i record.</p>
                   </div>
+                  <button 
+                    onClick={handleResetOrder}
+                    className="px-4 py-2 bg-slate-200 text-slate-700 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-300 transition-all flex items-center gap-2"
+                    title="Ripristina l'ordine cronologico di prenotazione"
+                  >
+                    <RefreshCw size={14} /> Ripristina Ordine
+                  </button>
                 </div>
 
                 <div className="space-y-12">
-                  {groupedPrenotazioni.map(([data, types]: [string, Record<TipologiaRifiuto, Prenotazione[]>]) => (
-                    <div key={data} className="space-y-6">
-                      <h3 className="text-2xl font-black tracking-tight flex items-center gap-3 text-slate-800 border-b border-slate-200 pb-3">
-                        <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center">
-                          <Calendar className="text-slate-500" size={20} />
-                        </div>
-                        Data Ritiro: {data}
-                      </h3>
-                      
-                      {(Object.entries(types) as [TipologiaRifiuto, Prenotazione[]][]).map(([tipo, list]) => (
-                        list.length > 0 && (
-                          <div key={tipo} className="space-y-3">
-                            <div className="flex justify-between items-center">
-                              <h4 className={cn(
-                                "text-xs font-black uppercase tracking-widest flex items-center gap-2",
-                                tipo === 'Ingombranti' ? "text-blue-600" : "text-emerald-600"
-                              )}>
-                                {tipo === 'Ingombranti' ? <LayoutDashboard size={14} /> : <Leaf size={14} />}
-                                {tipo} • {list.length} record
-                              </h4>
-                            </div>
-
-                            <div className="overflow-x-auto rounded-3xl border bg-white border-slate-200 shadow-sm">
-                              <table className="w-full text-left border-collapse">
-                                <thead>
-                                  <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                                    <th className="p-3 border-r border-slate-100">Utente</th>
-                                    <th className="p-3 border-r border-slate-100">Via</th>
-                                    <th className="p-3 border-r border-slate-100">Telefono</th>
-                                    <th className="p-3 border-r border-slate-100">Materiali</th>
-                                    <th className="p-3">Note</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {list.map((p) => (
-                                    <tr key={p.id} className="border-b last:border-0 border-slate-50 hover:bg-slate-50/50 transition-colors">
-                                      <td className="p-3 border-r border-slate-50 font-bold text-slate-800 truncate">{p.utente || 'N/D'}</td>
-                                      <td className="p-3 border-r border-slate-50 text-slate-600 truncate">{p.via || 'N/D'}</td>
-                                      <td className="p-3 border-r border-slate-50 text-slate-600">{p.telefono || 'N/D'}</td>
-                                      <td className="p-3 border-r border-slate-50 text-slate-600 truncate">{p.materiali || ''}</td>
-                                      <td className="p-3 text-slate-400 italic text-xs truncate">{p.note || ''}</td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
+                  <DndContext 
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    {groupedPrenotazioni.map(([data, types]: [string, Record<TipologiaRifiuto, Prenotazione[]>]) => (
+                      <div key={data} className="space-y-6">
+                        <h3 className="text-2xl font-black tracking-tight flex items-center gap-3 text-slate-800 border-b border-slate-200 pb-3">
+                          <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center">
+                            <Calendar className="text-slate-500" size={20} />
                           </div>
-                        )
-                      ))}
-                    </div>
-                  ))}
+                          Data Ritiro: {data}
+                        </h3>
+                        
+                        {(Object.entries(types) as [TipologiaRifiuto, Prenotazione[]][]).map(([tipo, list]) => (
+                          list.length > 0 && (
+                            <div key={tipo} className="space-y-3">
+                              <div className="flex justify-between items-center">
+                                <h4 className={cn(
+                                  "text-xs font-black uppercase tracking-widest flex items-center gap-2",
+                                  tipo === 'Ingombranti' ? "text-blue-600" : "text-emerald-600"
+                                )}>
+                                  {tipo === 'Ingombranti' ? <LayoutDashboard size={14} /> : <Leaf size={14} />}
+                                  {tipo} • {list.length} record
+                                </h4>
+                                <button 
+                                  onClick={() => generaDocumentoWord(list, tipo, data)}
+                                  className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10"
+                                >
+                                  <Download size={12} /> Esporta Word
+                                </button>
+                              </div>
+
+                              <div className="overflow-x-auto rounded-[32px] border bg-white border-slate-200 shadow-sm">
+                                <table className="w-full text-left border-collapse">
+                                  <thead>
+                                    <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                      <th className="p-3 w-8 border-r border-slate-200"></th>
+                                      <th className="p-3 border-r border-slate-200">Data Ritiro</th>
+                                      <th className="p-3 border-r border-slate-200">Data Prenotazione</th>
+                                      <th className="p-3 border-r border-slate-200">Utente</th>
+                                      <th className="p-3 border-r border-slate-200">Via</th>
+                                      <th className="p-3 border-r border-slate-200">Telefono</th>
+                                      <th className="p-3 border-r border-slate-200">Materiali</th>
+                                      <th className="p-3 border-r border-slate-200">Note</th>
+                                      <th className="p-3 w-10"></th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    <SortableContext 
+                                      items={list.map(p => p.id)}
+                                      strategy={verticalListSortingStrategy}
+                                    >
+                                      {list.map((p) => (
+                                        <SortableRow 
+                                          key={p.id} 
+                                          p={p} 
+                                          handleUpdateField={handleUpdateField}
+                                          handleDelete={handleDelete}
+                                          dateDisponibili={dateDisponibili}
+                                        />
+                                      ))}
+                                    </SortableContext>
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )
+                        ))}
+                      </div>
+                    ))}
+                  </DndContext>
 
                   {groupedPrenotazioni.length === 0 && (
                     <div className={cn(
@@ -1626,6 +1666,17 @@ const SortableRow: React.FC<SortableRowProps> = ({
             value={p.telefono || ''} 
             onChange={(e) => handleUpdateField(p.id, 'telefono', e.target.value)}
             className="absolute inset-0 w-full h-full bg-transparent p-3 text-slate-600 font-medium focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30"
+          />
+        </div>
+      </td>
+      <td className="p-0 border-r border-slate-200">
+        <div className="relative min-w-[150px]">
+          <div className="invisible whitespace-pre-wrap p-3 font-medium break-words">{p.materiali || ' '}</div>
+          <textarea 
+            value={p.materiali || ''} 
+            onChange={(e) => handleUpdateField(p.id, 'materiali', e.target.value)}
+            rows={1}
+            className="absolute inset-0 w-full h-full bg-transparent p-3 text-slate-600 font-medium focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30 resize-none overflow-hidden"
           />
         </div>
       </td>

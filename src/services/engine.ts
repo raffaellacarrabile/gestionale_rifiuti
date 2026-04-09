@@ -78,12 +78,28 @@ export function formattaMateriali(materiali: string | null | undefined): string 
     .join('\n');
 }
 
+export function parseFullDate(s: string | undefined): number {
+  if (!s) return 0;
+  try {
+    const [date, time] = s.split(' ');
+    const [d, m, y] = date.split('/').map(Number);
+    if (!time) return new Date(y, m - 1, d).getTime();
+    const [h, min] = time.split(':').map(Number);
+    return new Date(y, m - 1, d, h, min).getTime();
+  } catch {
+    return 0;
+  }
+}
+
 export function separaDatabase(database: Prenotazione[]) {
   const oggi = startOfToday();
   
   const safeDb = (database || []).filter(p => p && p.id);
 
-  const attive = safeDb.filter(p => {
+  // Default sorting by dataPrenotazione
+  const sortedDb = [...safeDb].sort((a, b) => parseFullDate(b.dataPrenotazione) - parseFullDate(a.dataPrenotazione));
+
+  const attive = sortedDb.filter(p => {
     if (!p.dataRitiro || p.dataRitiro === "Data Extra") return true;
     try {
       const d = parse(p.dataRitiro, 'dd/MM/yyyy', new Date());
@@ -93,21 +109,13 @@ export function separaDatabase(database: Prenotazione[]) {
     }
   });
 
-  const storico = safeDb.filter(p => {
+  const storico = sortedDb.filter(p => {
     if (!p.dataRitiro || p.dataRitiro === "Data Extra") return false;
     try {
       const d = parse(p.dataRitiro, 'dd/MM/yyyy', new Date());
       return isBefore(d, oggi);
     } catch {
       return false;
-    }
-  }).sort((a, b) => {
-    try {
-      const dateB = parse(b.dataRitiro, 'dd/MM/yyyy', new Date()).getTime();
-      const dateA = parse(a.dataRitiro, 'dd/MM/yyyy', new Date()).getTime();
-      return dateB - dateA;
-    } catch {
-      return 0;
     }
   });
 

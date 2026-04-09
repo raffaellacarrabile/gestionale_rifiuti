@@ -1,9 +1,13 @@
 import { Document, Packer, Paragraph, Table, TableRow, TableCell, WidthType, AlignmentType, TextRun, SectionType, BorderStyle, VerticalAlign, PageOrientation, Header, Footer, PageNumber } from 'docx';
 import { Prenotazione, TipologiaRifiuto } from '../types';
 import { saveAs } from 'file-saver';
+import { parseFullDate } from './engine';
 
 export async function generaDocumentoWord(prenotazioni: Prenotazione[], tipo: TipologiaRifiuto, data: string) {
-  const total = prenotazioni.length;
+  // Default sorting by dataPrenotazione for Word export
+  const sortedPrenotazioni = [...prenotazioni].sort((a, b) => parseFullDate(a.dataPrenotazione) - parseFullDate(b.dataPrenotazione));
+  
+  const total = sortedPrenotazioni.length;
   // Se ci sono più di 12 prenotazioni (2 pagine standard), passiamo alla modalità "Densa"
   const isDense = total > 12;
   const rowsPerPage = isDense ? 10 : 6;
@@ -11,8 +15,8 @@ export async function generaDocumentoWord(prenotazioni: Prenotazione[], tipo: Ti
   const rowHeight = isDense ? 800 : 1200;
 
   const chunks: Prenotazione[][] = [];
-  for (let i = 0; i < prenotazioni.length; i += rowsPerPage) {
-    chunks.push(prenotazioni.slice(i, i + rowsPerPage));
+  for (let i = 0; i < sortedPrenotazioni.length; i += rowsPerPage) {
+    chunks.push(sortedPrenotazioni.slice(i, i + rowsPerPage));
   }
 
   // Paginazione minima
@@ -45,7 +49,7 @@ export async function generaDocumentoWord(prenotazioni: Prenotazione[], tipo: Ti
           width: { size: 15, type: WidthType.PERCENTAGE }
         }),
         new TableCell({ 
-          children: [new Paragraph({ children: [new TextRun({ text: "TIPOLOGIA RIFUTO", bold: true, size: 24, font: "Calibri" })], alignment: AlignmentType.CENTER })],
+          children: [new Paragraph({ children: [new TextRun({ text: "MATERIALI", bold: true, size: 24, font: "Calibri" })], alignment: AlignmentType.CENTER })],
           verticalAlign: VerticalAlign.CENTER,
           width: { size: 15, type: WidthType.PERCENTAGE }
         }),
@@ -64,7 +68,7 @@ export async function generaDocumentoWord(prenotazioni: Prenotazione[], tipo: Ti
         new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: p.utente, size: dataFontSize, font: "Calibri" })], alignment: AlignmentType.LEFT })], verticalAlign: VerticalAlign.CENTER, margins: { left: 100 } }),
         new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: p.via, size: dataFontSize, font: "Calibri" })], alignment: AlignmentType.LEFT })], verticalAlign: VerticalAlign.CENTER, margins: { left: 100 } }),
         new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: p.telefono, size: dataFontSize, font: "Calibri" })], alignment: AlignmentType.CENTER })], verticalAlign: VerticalAlign.CENTER }),
-        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: p.tipologia, size: dataFontSize, font: "Calibri" })], alignment: AlignmentType.CENTER })], verticalAlign: VerticalAlign.CENTER }),
+        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: p.materiali || '', size: dataFontSize, font: "Calibri" })], alignment: AlignmentType.CENTER })], verticalAlign: VerticalAlign.CENTER }),
         new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: p.note || '', size: dataFontSize, font: "Calibri" })], alignment: AlignmentType.LEFT })], verticalAlign: VerticalAlign.CENTER, margins: { left: 100 } }),
       ],
     }));
