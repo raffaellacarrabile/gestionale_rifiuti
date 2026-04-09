@@ -964,6 +964,7 @@ export default function App() {
                                     <thead>
                                       <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-400">
                                         <th className="p-3 w-8 border-r border-slate-200"></th>
+                                        <th className="p-3 border-r border-slate-200">Data Ritiro</th>
                                         <th className="p-3 border-r border-slate-200">Data Prenotazione</th>
                                         <th className="p-3 border-r border-slate-200">Utente</th>
                                         <th className="p-3 border-r border-slate-200">Via</th>
@@ -1305,7 +1306,13 @@ export default function App() {
                           }} />
                         </span>
                       ))}
+                      {config.dateExtra.length === 0 && (
+                        <p className="text-sm text-slate-400 italic">Nessuna data extra configurata.</p>
+                      )}
                     </div>
+                    <p className="text-[10px] text-slate-400 italic">
+                      Puoi inserire qualsiasi data (anche passata). Verranno mostrate nel selettore delle prenotazioni.
+                    </p>
                   </div>
                 </div>
 
@@ -1566,6 +1573,19 @@ const SortableRow: React.FC<SortableRowProps> = ({
         >
           <GripVertical size={14} />
         </button>
+      </td>
+      <td className="p-0 border-r border-slate-200">
+        <div className="relative min-w-[140px]">
+          <select 
+            value={p.dataRitiro} 
+            onChange={(e) => handleUpdateField(p.id, 'dataRitiro', e.target.value)}
+            className="w-full h-full bg-transparent p-3 text-emerald-600 font-black text-xs focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30 appearance-none cursor-pointer"
+          >
+            {dateDisponibili.map(d => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+          </select>
+        </div>
       </td>
       <td className="p-0 border-r border-slate-200">
         <div className="relative min-w-[140px]">

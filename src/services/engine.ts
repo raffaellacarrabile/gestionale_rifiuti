@@ -34,13 +34,13 @@ export function generaDateRitiro(dateExtra: string[] = []): string[] {
     dateStandard.push(format(primoMercoledi, 'dd/MM/yyyy'));
   }
 
-  // Routine Straordinaria: Date extra non antecedenti a oggi
+  // Routine Straordinaria: Date extra (anche passate come richiesto)
   const dateExtraValide = (dateExtra || [])
     .filter(d => {
       if (!d) return false;
       try {
-        const parsed = parse(d, 'dd/MM/yyyy', new Date());
-        return isAfter(parsed, oggi) || isEqual(parsed, oggi);
+        parse(d, 'dd/MM/yyyy', new Date());
+        return true;
       } catch {
         return false;
       }
