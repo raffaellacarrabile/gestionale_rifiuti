@@ -21,6 +21,8 @@ import {
   FileText,
   GripVertical,
   ArrowRight,
+  ArrowUp,
+  ArrowDown,
   RefreshCw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -123,6 +125,8 @@ export default function App() {
   });
 
   const [alertVietati, setAlertVietati] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   useEffect(() => {
     let syncChannel: any;
@@ -133,8 +137,8 @@ export default function App() {
           fetchDatabase(),
           fetchConfig()
         ]);
-        // Default sorting by dataPrenotazione on load
-        const sortedDb = initialDb.sort((a, b) => parseFullDate(b.dataPrenotazione) - parseFullDate(a.dataPrenotazione));
+        // Default sorting by dataPrenotazione on load: least recent to most recent
+        const sortedDb = initialDb.sort((a, b) => parseFullDate(a.dataPrenotazione) - parseFullDate(b.dataPrenotazione));
         setDb(sortedDb);
         setConfig(initialConfig);
         
@@ -460,10 +464,10 @@ export default function App() {
   };
 
   const handleResetOrder = () => {
-    const sortedDb = [...db].sort((a, b) => parseFullDate(b.dataPrenotazione) - parseFullDate(a.dataPrenotazione));
+    const sortedDb = [...db].sort((a, b) => parseFullDate(a.dataPrenotazione) - parseFullDate(b.dataPrenotazione));
     setDb(sortedDb);
     updateDatabase(sortedDb);
-    toast.success("Ordine ripristinato per data prenotazione.");
+    toast.success("Ordine ripristinato (dal meno recente al più recente).");
   };
 
   const chartData = useMemo(() => {
@@ -477,9 +481,22 @@ export default function App() {
 
   const groupedPrenotazioni = useMemo(() => {
     const target = activeTab === 'attive' ? attive : storico;
+    
+    const filtered = target.filter(p => {
+      const search = searchTerm.toLowerCase();
+      return (
+        p.utente?.toLowerCase().includes(search) ||
+        p.via?.toLowerCase().includes(search) ||
+        p.telefono?.toLowerCase().includes(search) ||
+        p.materiali?.toLowerCase().includes(search) ||
+        p.note?.toLowerCase().includes(search) ||
+        p.dataRitiro?.toLowerCase().includes(search)
+      );
+    });
+
     const groupsMap = new Map<string, Record<TipologiaRifiuto, Prenotazione[]>>();
     
-    target.forEach(p => {
+    filtered.forEach(p => {
       if (!p || !p.dataRitiro) return;
       if (!groupsMap.has(p.dataRitiro)) {
         groupsMap.set(p.dataRitiro, { Ingombranti: [], Potature: [] });
@@ -489,6 +506,17 @@ export default function App() {
         group[p.tipologia].push(p);
       }
     });
+
+    // Sort within each group based on sortOrder
+    groupsMap.forEach((types) => {
+      (Object.keys(types) as TipologiaRifiuto[]).forEach(tipo => {
+        types[tipo].sort((a, b) => {
+          const valA = parseFullDate(a.dataPrenotazione);
+          const valB = parseFullDate(b.dataPrenotazione);
+          return sortOrder === 'asc' ? valA - valB : valB - valA;
+        });
+      });
+    });
     
     return Array.from(groupsMap.entries()).sort((a, b) => {
       const dateA = parseDate(a[0]);
@@ -496,7 +524,7 @@ export default function App() {
       if (activeTab === 'storico') return dateB.getTime() - dateA.getTime();
       return dateA.getTime() - dateB.getTime();
     });
-  }, [activeTab, attive, storico]);
+  }, [activeTab, attive, storico, searchTerm]);
 
   return (
     <div className={cn(
@@ -913,6 +941,16 @@ export default function App() {
                     <p className="text-slate-400 font-medium">Gestione separata per data e tipologia. Trascina le righe per riordinare.</p>
                   </div>
                   <div className="flex gap-3">
+                    <div className="relative">
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                      <input 
+                        type="text"
+                        placeholder="Cerca..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-12 pr-6 py-2 bg-white border border-slate-200 rounded-xl font-bold text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600/20 w-64"
+                      />
+                    </div>
                     <button 
                       onClick={() => generaDocumentoWord(attive, 'Ingombranti', 'Tutti')}
                       className="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 flex items-center gap-2"
@@ -924,13 +962,6 @@ export default function App() {
                       className="px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20 flex items-center gap-2"
                     >
                       <Download size={14} /> Export Tutte Potature
-                    </button>
-                    <button 
-                      onClick={handleResetOrder}
-                      className="px-4 py-2 bg-slate-200 text-slate-700 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-300 transition-all flex items-center gap-2"
-                      title="Ripristina l'ordine cronologico di prenotazione"
-                    >
-                      <RefreshCw size={14} /> Ripristina Ordine
                     </button>
                   </div>
                 </div>
@@ -976,7 +1007,15 @@ export default function App() {
                                       <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-400">
                                         <th className="p-3 w-8 border-r border-slate-200"></th>
                                         <th className="p-3 border-r border-slate-200">Data Ritiro</th>
-                                        <th className="p-3 border-r border-slate-200">Data Prenotazione</th>
+                                        <th 
+                                          className="p-3 border-r border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors group"
+                                          onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                                        >
+                                          <div className="flex items-center justify-between">
+                                            Data Prenotazione
+                                            {sortOrder === 'asc' ? <ArrowUp size={12} className="text-emerald-600" /> : <ArrowDown size={12} className="text-emerald-600" />}
+                                          </div>
+                                        </th>
                                         <th className="p-3 border-r border-slate-200">Utente</th>
                                         <th className="p-3 border-r border-slate-200">Via</th>
                                         <th className="p-3 border-r border-slate-200">Telefono</th>
@@ -1033,13 +1072,18 @@ export default function App() {
                     <h2 className="text-3xl font-black tracking-tighter text-slate-900">Storico Prenotazioni</h2>
                     <p className="text-slate-400 font-medium">Archivio dei ritiri completati. Puoi riordinare o spostare i record.</p>
                   </div>
-                  <button 
-                    onClick={handleResetOrder}
-                    className="px-4 py-2 bg-slate-200 text-slate-700 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-300 transition-all flex items-center gap-2"
-                    title="Ripristina l'ordine cronologico di prenotazione"
-                  >
-                    <RefreshCw size={14} /> Ripristina Ordine
-                  </button>
+                  <div className="flex gap-3">
+                    <div className="relative">
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                      <input 
+                        type="text"
+                        placeholder="Cerca nello storico..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-12 pr-6 py-2 bg-white border border-slate-200 rounded-xl font-bold text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600/20 w-64"
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <div className="space-y-12">
@@ -1082,7 +1126,15 @@ export default function App() {
                                     <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-400">
                                       <th className="p-3 w-8 border-r border-slate-200"></th>
                                       <th className="p-3 border-r border-slate-200">Data Ritiro</th>
-                                      <th className="p-3 border-r border-slate-200">Data Prenotazione</th>
+                                      <th 
+                                        className="p-3 border-r border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors group"
+                                        onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                                      >
+                                        <div className="flex items-center justify-between">
+                                          Data Prenotazione
+                                          {sortOrder === 'asc' ? <ArrowUp size={12} className="text-emerald-600" /> : <ArrowDown size={12} className="text-emerald-600" />}
+                                        </div>
+                                      </th>
                                       <th className="p-3 border-r border-slate-200">Utente</th>
                                       <th className="p-3 border-r border-slate-200">Via</th>
                                       <th className="p-3 border-r border-slate-200">Telefono</th>

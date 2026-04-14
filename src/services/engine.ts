@@ -96,10 +96,7 @@ export function separaDatabase(database: Prenotazione[]) {
   
   const safeDb = (database || []).filter(p => p && p.id);
 
-  // Default sorting by dataPrenotazione
-  const sortedDb = [...safeDb].sort((a, b) => parseFullDate(b.dataPrenotazione) - parseFullDate(a.dataPrenotazione));
-
-  const attive = sortedDb.filter(p => {
+  const attive = safeDb.filter(p => {
     if (!p.dataRitiro || p.dataRitiro === "Data Extra") return true;
     try {
       const d = parse(p.dataRitiro, 'dd/MM/yyyy', new Date());
@@ -109,7 +106,7 @@ export function separaDatabase(database: Prenotazione[]) {
     }
   });
 
-  const storico = sortedDb.filter(p => {
+  const storico = safeDb.filter(p => {
     if (!p.dataRitiro || p.dataRitiro === "Data Extra") return false;
     try {
       const d = parse(p.dataRitiro, 'dd/MM/yyyy', new Date());
