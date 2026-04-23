@@ -26,7 +26,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { format } from 'date-fns';
+import { format, isBefore, startOfToday } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { 
   DndContext, 
@@ -199,6 +199,15 @@ export default function App() {
 
   const { attive, storico } = useMemo(() => separaDatabase(db), [db]);
   const dateDisponibili = useMemo(() => generaDateRitiro(config.dateExtra), [config.dateExtra]);
+
+  const futureDates = useMemo(() => {
+    const oggi = startOfToday();
+    return dateDisponibili.filter(d => {
+      if (d === "Data Extra") return true;
+      const parsed = parseDate(d);
+      return !isBefore(parsed, oggi);
+    });
+  }, [dateDisponibili]);
 
   const nextMonthInfo = useMemo(() => {
     const getNext = (tipo: TipologiaRifiuto) => {
@@ -860,7 +869,7 @@ export default function App() {
                             )}
                           >
                             <option value="">Seleziona una data...</option>
-                            {dateDisponibili.map(d => {
+                            {futureDates.map(d => {
                               const count = d === "Data Extra" ? 0 : contaPrenotazioni(db, d, formData.tipologia);
                               const limite = LIMITI[formData.tipologia];
                               const status = getCapacityStatus(count, limite);
@@ -901,7 +910,7 @@ export default function App() {
                         onChange={(e) => handleMaterialiChange(e.target.value)}
                         placeholder="Es:&#10;Divano&#10;Frigorifero"
                         rows={5}
-                        required
+                        required={formData.tipologia === 'Ingombranti'}
                         className={cn(
                           "w-full p-6 rounded-[32px] border focus:outline-none focus:ring-4 transition-all bg-slate-50 border-slate-200 text-slate-800 placeholder:text-slate-300 font-bold leading-relaxed",
                           alertVietati ? "border-orange-500 ring-orange-500/10" : "focus:ring-emerald-600/10"
@@ -1388,22 +1397,30 @@ export default function App() {
                       </button>
                     </div>
                     <div className="flex flex-wrap gap-3">
-                      {config.dateExtra.map(d => (
-                        <span key={d} className="px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm">
-                          {d}
-                          <X size={16} className="cursor-pointer hover:text-red-500 transition-colors" onClick={async () => {
-                            const newConfig = {...config, dateExtra: config.dateExtra.filter(x => x !== d)};
-                            setConfig(newConfig);
-                            await updateConfig(newConfig);
-                          }} />
-                        </span>
-                      ))}
+                      {config.dateExtra.map(d => {
+                        const isArchived = isBefore(parseDate(d), startOfToday());
+                        return (
+                          <span key={d} className={cn(
+                            "px-4 py-2 border rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm transition-all",
+                            isArchived 
+                              ? "bg-slate-50 text-slate-400 border-slate-200 opacity-60" 
+                              : "bg-emerald-50 text-emerald-700 border-emerald-100"
+                          )}>
+                            {d} {isArchived && <span className="text-[9px] uppercase tracking-widest bg-slate-200 px-1.5 py-0.5 rounded text-slate-500">Archiviata</span>}
+                            <X size={16} className="cursor-pointer hover:text-red-500 transition-colors" onClick={async () => {
+                              const newConfig = {...config, dateExtra: config.dateExtra.filter(x => x !== d)};
+                              setConfig(newConfig);
+                              await updateConfig(newConfig);
+                            }} />
+                          </span>
+                        );
+                      })}
                       {config.dateExtra.length === 0 && (
                         <p className="text-sm text-slate-400 italic">Nessuna data extra configurata.</p>
                       )}
                     </div>
                     <p className="text-[10px] text-slate-400 italic">
-                      Puoi inserire qualsiasi data (anche passata). Verranno mostrate nel selettore delle prenotazioni.
+                      Puoi inserire qualsiasi data (anche passata). Le date passate verranno rimosse automaticamente dalla scelta per nuove prenotazioni (Archiviate).
                     </p>
                   </div>
                 </div>
@@ -1551,7 +1568,7 @@ export default function App() {
                         className="w-full p-4 rounded-2xl border bg-slate-50 border-slate-200 text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-blue-600/20"
                       >
                         <option value="">Seleziona una data...</option>
-                        {dateDisponibili.map(d => <option key={d} value={d}>{d}</option>)}
+                        {futureDates.map(d => <option key={d} value={d}>{d}</option>)}
                       </select>
                     </div>
                     
@@ -1631,6 +1648,26 @@ const SortableRow: React.FC<SortableRowProps> = ({
   handleDelete, 
   dateDisponibili 
 }) => {
+  const [localData, setLocalData] = useState({
+    utente: p.utente || '',
+    via: p.via || '',
+    telefono: p.telefono || '',
+    materiali: p.materiali || '',
+    note: p.note || '',
+    dataPrenotazione: p.dataPrenotazione || ''
+  });
+
+  useEffect(() => {
+    setLocalData({
+      utente: p.utente || '',
+      via: p.via || '',
+      telefono: p.telefono || '',
+      materiali: p.materiali || '',
+      note: p.note || '',
+      dataPrenotazione: p.dataPrenotazione || ''
+    });
+  }, [p.utente, p.via, p.telefono, p.materiali, p.note, p.dataPrenotazione]);
+
   const {
     attributes,
     listeners,
@@ -1646,6 +1683,12 @@ const SortableRow: React.FC<SortableRowProps> = ({
     zIndex: isDragging ? 100 : 1,
     opacity: isDragging ? 0.5 : 1,
     position: isDragging ? 'relative' as const : 'static' as const,
+  };
+
+  const handleBlur = (field: keyof Prenotazione, value: string) => {
+    if (value !== (p[field] as string)) {
+      handleUpdateField(p.id, field, value);
+    }
   };
 
   return (
@@ -1681,20 +1724,22 @@ const SortableRow: React.FC<SortableRowProps> = ({
       </td>
       <td className="p-0 border-r border-slate-200">
         <div className="relative min-w-[140px]">
-          <div className="invisible whitespace-nowrap p-3 font-bold">{p.dataPrenotazione || ' '}</div>
+          <div className="invisible whitespace-nowrap p-3 font-bold">{localData.dataPrenotazione || ' '}</div>
           <input 
-            value={p.dataPrenotazione || ''} 
-            onChange={(e) => handleUpdateField(p.id, 'dataPrenotazione', e.target.value)}
+            value={localData.dataPrenotazione} 
+            onChange={(e) => setLocalData({...localData, dataPrenotazione: e.target.value})}
+            onBlur={(e) => handleBlur('dataPrenotazione', e.target.value)}
             className="absolute inset-0 w-full h-full bg-transparent p-3 text-slate-600 font-bold focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30"
           />
         </div>
       </td>
       <td className="p-0 border-r border-slate-200">
         <div className="relative min-w-[120px]">
-          <div className="invisible whitespace-pre-wrap p-3 font-bold break-words">{p.utente || ' '}</div>
+          <div className="invisible whitespace-pre-wrap p-3 font-bold break-words">{localData.utente || ' '}</div>
           <textarea 
-            value={p.utente || ''} 
-            onChange={(e) => handleUpdateField(p.id, 'utente', e.target.value)}
+            value={localData.utente} 
+            onChange={(e) => setLocalData({...localData, utente: e.target.value})}
+            onBlur={(e) => handleBlur('utente', e.target.value)}
             rows={1}
             className="absolute inset-0 w-full h-full bg-transparent p-3 font-bold text-slate-800 focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30 resize-none overflow-hidden"
           />
@@ -1702,10 +1747,11 @@ const SortableRow: React.FC<SortableRowProps> = ({
       </td>
       <td className="p-0 border-r border-slate-200">
         <div className="relative min-w-[150px]">
-          <div className="invisible whitespace-pre-wrap p-3 font-medium break-words">{p.via || ' '}</div>
+          <div className="invisible whitespace-pre-wrap p-3 font-medium break-words">{localData.via || ' '}</div>
           <textarea 
-            value={p.via || ''} 
-            onChange={(e) => handleUpdateField(p.id, 'via', e.target.value)}
+            value={localData.via} 
+            onChange={(e) => setLocalData({...localData, via: e.target.value})}
+            onBlur={(e) => handleBlur('via', e.target.value)}
             rows={1}
             className="absolute inset-0 w-full h-full bg-transparent p-3 text-slate-600 font-medium focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30 resize-none overflow-hidden"
           />
@@ -1713,20 +1759,22 @@ const SortableRow: React.FC<SortableRowProps> = ({
       </td>
       <td className="p-0 border-r border-slate-200">
         <div className="relative min-w-[100px]">
-          <div className="invisible whitespace-nowrap p-3 font-medium">{p.telefono || ' '}</div>
+          <div className="invisible whitespace-nowrap p-3 font-medium">{localData.telefono || ' '}</div>
           <input 
-            value={p.telefono || ''} 
-            onChange={(e) => handleUpdateField(p.id, 'telefono', e.target.value)}
+            value={localData.telefono} 
+            onChange={(e) => setLocalData({...localData, telefono: e.target.value})}
+            onBlur={(e) => handleBlur('telefono', e.target.value)}
             className="absolute inset-0 w-full h-full bg-transparent p-3 text-slate-600 font-medium focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30"
           />
         </div>
       </td>
       <td className="p-0 border-r border-slate-200">
         <div className="relative min-w-[150px]">
-          <div className="invisible whitespace-pre-wrap p-3 font-medium break-words">{p.materiali || ' '}</div>
+          <div className="invisible whitespace-pre-wrap p-3 font-medium break-words">{localData.materiali || ' '}</div>
           <textarea 
-            value={p.materiali || ''} 
-            onChange={(e) => handleUpdateField(p.id, 'materiali', e.target.value)}
+            value={localData.materiali} 
+            onChange={(e) => setLocalData({...localData, materiali: e.target.value})}
+            onBlur={(e) => handleBlur('materiali', e.target.value)}
             rows={1}
             className="absolute inset-0 w-full h-full bg-transparent p-3 text-slate-600 font-medium focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30 resize-none overflow-hidden"
           />
@@ -1734,10 +1782,11 @@ const SortableRow: React.FC<SortableRowProps> = ({
       </td>
       <td className="p-0 border-r border-slate-200">
         <div className="relative min-w-[200px]">
-          <div className="invisible whitespace-pre-wrap p-3 italic font-medium break-words">{p.note || ' '}</div>
+          <div className="invisible whitespace-pre-wrap p-3 italic font-medium break-words">{localData.note || ' '}</div>
           <textarea 
-            value={p.note || ''} 
-            onChange={(e) => handleUpdateField(p.id, 'note', e.target.value)}
+            value={localData.note} 
+            onChange={(e) => setLocalData({...localData, note: e.target.value})}
+            onBlur={(e) => handleBlur('note', e.target.value)}
             rows={1}
             className="absolute inset-0 w-full h-full bg-transparent p-3 text-slate-500 italic font-medium focus:bg-white focus:outline-none focus:ring-inset focus:ring-1 focus:ring-emerald-600/30 resize-none overflow-hidden"
           />
