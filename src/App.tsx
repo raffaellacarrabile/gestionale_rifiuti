@@ -1009,11 +1009,17 @@ export default function App() {
                                 </button>
                               </div>
 
-                              <div className="bg-white rounded-[32px] border border-slate-200 shadow-xl overflow-hidden">
+                              <div className={cn(
+                                "rounded-[32px] border shadow-xl overflow-hidden transition-all",
+                                tipo === 'Ingombranti' ? "bg-blue-50/70 border-blue-200" : "bg-emerald-50/70 border-emerald-200"
+                              )}>
                                 <div className="overflow-x-auto">
                                   <table className="w-full text-left border-collapse">
                                     <thead>
-                                      <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                      <tr className={cn(
+                                        "border-b border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-400",
+                                        tipo === 'Ingombranti' ? "bg-blue-100/80" : "bg-emerald-100/80"
+                                      )}>
                                         <th className="p-3 w-8 border-r border-slate-200"></th>
                                         <th className="p-3 border-r border-slate-200">Data Ritiro</th>
                                         <th 
@@ -1129,10 +1135,16 @@ export default function App() {
                                 </button>
                               </div>
 
-                              <div className="overflow-x-auto rounded-[32px] border bg-white border-slate-200 shadow-sm">
+                              <div className={cn(
+                                "overflow-x-auto rounded-[32px] border shadow-sm transition-all",
+                                tipo === 'Ingombranti' ? "bg-blue-50/70 border-blue-200" : "bg-emerald-50/70 border-emerald-200"
+                              )}>
                                 <table className="w-full text-left border-collapse">
                                   <thead>
-                                    <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                    <tr className={cn(
+                                      "border-b border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-400",
+                                      tipo === 'Ingombranti' ? "bg-blue-100/80" : "bg-emerald-100/80"
+                                    )}>
                                       <th className="p-3 w-8 border-r border-slate-200"></th>
                                       <th className="p-3 border-r border-slate-200">Data Ritiro</th>
                                       <th 
