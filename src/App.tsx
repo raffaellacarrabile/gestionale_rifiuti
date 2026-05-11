@@ -18,6 +18,7 @@ import {
   Menu,
   X,
   Leaf,
+  Copy,
   FileText,
   GripVertical,
   ArrowRight,
@@ -244,6 +245,17 @@ export default function App() {
     return [...attive].sort((a, b) => parseFullDate(b.dataPrenotazione) - parseFullDate(a.dataPrenotazione)).slice(0, 8);
   }, [attive]);
 
+  const uniqueUsers = useMemo(() => {
+    const map = new Map<string, { utente: string, via: string, telefono: string }>();
+    const sorted = [...db].sort((a,b) => parseFullDate(b.dataPrenotazione) - parseFullDate(a.dataPrenotazione));
+    sorted.forEach(p => {
+      if (p.utente && !map.has(p.utente.toLowerCase())) {
+        map.set(p.utente.toLowerCase(), { utente: p.utente, via: p.via, telefono: p.telefono });
+      }
+    });
+    return Array.from(map.values());
+  }, [db]);
+
   // Selezione automatica prima data disponibile
   useEffect(() => {
     const findFirstAvailable = () => {
@@ -361,6 +373,24 @@ export default function App() {
       setPendingDeleteId(null);
       toast.success("Prenotazione eliminata.");
     }
+  };
+
+  const handleDuplicate = async (p: Prenotazione) => {
+    const newId = Math.random().toString(36).substr(2, 9);
+    const newPrenotazione: Prenotazione = {
+      ...p,
+      id: newId,
+      dataPrenotazione: format(new Date(), 'dd/MM/yyyy HH:mm'),
+    };
+    
+    await upsertPrenotazione(newPrenotazione);
+    const newDb = [...db, newPrenotazione].sort((a, b) => {
+      const dateA = parseDate(a.dataRitiro);
+      const dateB = parseDate(b.dataRitiro);
+      return dateA.getTime() - dateB.getTime();
+    });
+    setDb(newDb);
+    toast.success("Prenotazione duplicata con successo!");
   };
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -826,11 +856,56 @@ export default function App() {
 
                   <form onSubmit={handleAddPrenotazione} className="space-y-10">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      <InputGroup label="Nominativo Utente" value={formData.utente} onChange={v => setFormData({...formData, utente: v})} placeholder="Mario Rossi" required />
-                      <InputGroup label="Telefono" value={formData.telefono} onChange={v => setFormData({...formData, telefono: v})} placeholder="333 1234567" required />
+                      <InputGroup 
+                        label="Nominativo Utente" 
+                        value={formData.utente} 
+                        onChange={v => setFormData({...formData, utente: v})} 
+                        placeholder="Mario Rossi" 
+                        required 
+                        suggestions={uniqueUsers
+                          .filter(u => u.utente.toLowerCase().includes(formData.utente.toLowerCase()) && formData.utente.length > 1)
+                          .slice(0, 5)
+                          .map(u => ({
+                            value: u.utente,
+                            subtext: `${u.via} • ${u.telefono}`,
+                            onSelect: () => setFormData({ ...formData, utente: u.utente, via: u.via, telefono: u.telefono })
+                          }))
+                        }
+                      />
+                      <InputGroup 
+                        label="Telefono" 
+                        value={formData.telefono} 
+                        onChange={v => setFormData({...formData, telefono: v})} 
+                        placeholder="333 1234567" 
+                        required 
+                        suggestions={uniqueUsers
+                          .filter(u => u.telefono.includes(formData.telefono) && formData.telefono.length > 2)
+                          .slice(0, 5)
+                          .map(u => ({
+                            value: u.telefono,
+                            subtext: `${u.utente} • ${u.via}`,
+                            onSelect: () => setFormData({ ...formData, utente: u.utente, via: u.via, telefono: u.telefono })
+                          }))
+                        }
+                      />
                     </div>
                     
-                    <InputGroup label="Indirizzo Completo" value={formData.via} onChange={v => setFormData({...formData, via: v})} placeholder="Via Roma 1, Milano" required />
+                    <InputGroup 
+                      label="Indirizzo Completo" 
+                      value={formData.via} 
+                      onChange={v => setFormData({...formData, via: v})} 
+                      placeholder="Via Roma 1, Milano" 
+                      required 
+                      suggestions={uniqueUsers
+                        .filter(u => u.via.toLowerCase().includes(formData.via.toLowerCase()) && formData.via.length > 3)
+                        .slice(0, 5)
+                        .map(u => ({
+                          value: u.via,
+                          subtext: `${u.utente} • ${u.telefono}`,
+                          onSelect: () => setFormData({ ...formData, utente: u.utente, via: u.via, telefono: u.telefono })
+                        }))
+                      }
+                    />
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       <div className="space-y-3">
@@ -944,33 +1019,33 @@ export default function App() {
                 animate={{ opacity: 1 }}
                 className="space-y-12"
               >
-                <div className="flex justify-between items-end">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 pb-8 border-b border-slate-200">
                   <div>
-                    <h2 className="text-3xl font-black tracking-tighter text-slate-900">Ritiri Attivi</h2>
-                    <p className="text-slate-400 font-medium">Gestione separata per data e tipologia. Trascina le righe per riordinare.</p>
+                    <h2 className="text-5xl font-black tracking-tighter text-slate-900 mb-2">Ritiri Attivi</h2>
+                    <p className="text-lg text-slate-400 font-medium max-w-xl leading-snug">Gestione separata per data e tipologia. Trascina le righe per riordinare.</p>
                   </div>
-                  <div className="flex gap-3">
-                    <div className="relative">
-                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                  <div className="flex flex-wrap items-center gap-4">
+                    <div className="relative group">
+                      <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" size={20} />
                       <input 
                         type="text"
                         placeholder="Cerca..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-12 pr-6 py-2 bg-white border border-slate-200 rounded-xl font-bold text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600/20 w-64"
+                        className="pl-14 pr-8 py-4 bg-white border-2 border-slate-100 rounded-3xl font-bold text-base focus:outline-none focus:border-emerald-500/30 focus:ring-4 focus:ring-emerald-500/5 transition-all w-80 shadow-sm"
                       />
                     </div>
                     <button 
                       onClick={() => generaDocumentoWord(attive, 'Ingombranti', 'Tutti')}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 flex items-center gap-2"
+                      className="px-8 py-4 bg-blue-600 text-white rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-600/20 flex items-center gap-3"
                     >
-                      <Download size={14} /> Export Tutti Ingombranti
+                      <Download size={18} /> Export Tutti Ingombranti
                     </button>
                     <button 
                       onClick={() => generaDocumentoWord(attive, 'Potature', 'Tutti')}
-                      className="px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20 flex items-center gap-2"
+                      className="px-8 py-4 bg-emerald-600 text-white rounded-3xl font-black text-sm uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-600/20 flex items-center gap-3"
                     >
-                      <Download size={14} /> Export Tutte Potature
+                      <Download size={18} /> Export Tutte Potature
                     </button>
                   </div>
                 </div>
@@ -980,50 +1055,59 @@ export default function App() {
                   collisionDetection={closestCenter}
                   onDragEnd={handleDragEnd}
                 >
-                  <div className="space-y-12">
+                  <div className="space-y-16">
                     {groupedPrenotazioni.map(([data, types]: [string, Record<TipologiaRifiuto, Prenotazione[]>]) => (
-                      <div key={data} className="space-y-6">
-                        <h3 className="text-2xl font-black tracking-tight flex items-center gap-3 text-slate-800 border-b border-slate-200 pb-3">
-                          <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
-                            <Calendar className="text-emerald-600" size={20} />
-                          </div>
-                          Data Ritiro: {data}
-                        </h3>
+                      <div key={data} className="space-y-8">
+                        <div className="sticky top-0 z-[50] -mx-4 px-4 bg-slate-50">
+                          <h3 className="text-3xl font-black tracking-tight flex items-center gap-4 text-slate-800 bg-white p-6 rounded-[32px] shadow-lg border border-slate-100">
+                            <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center border border-emerald-100">
+                              <Calendar className="text-emerald-600" size={24} />
+                            </div>
+                            Data Ritiro: {data}
+                          </h3>
+                        </div>
                         
                         {(Object.entries(types) as [TipologiaRifiuto, Prenotazione[]][]).map(([tipo, list]) => (
                           list.length > 0 && (
-                            <div key={tipo} className="space-y-3">
-                              <div className="flex justify-between items-center">
-                                <h4 className={cn(
-                                  "text-xs font-black uppercase tracking-widest flex items-center gap-2",
-                                  tipo === 'Ingombranti' ? "text-blue-600" : "text-emerald-600"
-                                )}>
-                                  {tipo === 'Ingombranti' ? <LayoutDashboard size={14} /> : <Leaf size={14} />}
-                                  {tipo} • {list.length} record
-                                </h4>
-                                <button 
-                                  onClick={() => generaDocumentoWord(list, tipo, data)}
-                                  className="text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-slate-600 flex items-center gap-1 transition-colors"
-                                >
-                                  <Download size={10} /> Export questa lista
-                                </button>
+                            <div key={tipo} className="space-y-4">
+                              <div className="sticky top-[96px] z-[45] -mx-4 px-4 bg-slate-50">
+                                <div className="flex justify-between items-center bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-slate-100 shadow-sm">
+                                  <h4 className={cn(
+                                    "text-sm font-black uppercase tracking-widest flex items-center gap-3",
+                                    tipo === 'Ingombranti' ? "text-blue-600" : "text-emerald-600"
+                                  )}>
+                                    <div className={cn(
+                                      "w-8 h-8 rounded-lg flex items-center justify-center",
+                                      tipo === 'Ingombranti' ? "bg-blue-100" : "bg-emerald-100"
+                                    )}>
+                                      {tipo === 'Ingombranti' ? <LayoutDashboard size={18} /> : <Leaf size={18} />}
+                                    </div>
+                                    {tipo} • <span className="text-slate-400">{list.length} record</span>
+                                  </h4>
+                                  <button 
+                                    onClick={() => generaDocumentoWord(list, tipo, data)}
+                                    className="text-xs font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 flex items-center gap-2 transition-colors px-4 py-2 hover:bg-slate-50 rounded-xl"
+                                  >
+                                    <Download size={14} /> Export Lista
+                                  </button>
+                                </div>
                               </div>
 
                               <div className={cn(
-                                "rounded-[32px] border shadow-xl overflow-hidden transition-all",
+                                "rounded-[32px] border shadow-xl transition-all",
                                 tipo === 'Ingombranti' ? "bg-blue-50/70 border-blue-200" : "bg-emerald-50/70 border-emerald-200"
                               )}>
-                                <div className="overflow-x-auto">
-                                  <table className="w-full text-left border-collapse">
-                                    <thead>
+                                <div className="rounded-[32px]">
+                                  <table className="w-full text-left border-collapse table-fixed md:table-auto">
+                                    <thead className="sticky top-[160px] z-[40]">
                                       <tr className={cn(
-                                        "border-b border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-400",
-                                        tipo === 'Ingombranti' ? "bg-blue-100/80" : "bg-emerald-100/80"
+                                        "border-b border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-400 shadow-md",
+                                        tipo === 'Ingombranti' ? "bg-blue-100" : "bg-emerald-100"
                                       )}>
-                                        <th className="p-3 w-8 border-r border-slate-200"></th>
-                                        <th className="p-3 border-r border-slate-200">Data Ritiro</th>
+                                        <th className={cn("p-4 w-12 border-r border-slate-200 sticky top-[160px] z-[40]", tipo === 'Ingombranti' ? "bg-blue-100" : "bg-emerald-100")}></th>
+                                        <th className={cn("p-4 border-r border-slate-200 sticky top-[160px] z-[40] whitespace-nowrap", tipo === 'Ingombranti' ? "bg-blue-100" : "bg-emerald-100")}>Data Ritiro</th>
                                         <th 
-                                          className="p-3 border-r border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors group"
+                                          className={cn("p-4 border-r border-slate-200 cursor-pointer hover:bg-slate-200 transition-colors group sticky top-[160px] z-[40] whitespace-nowrap", tipo === 'Ingombranti' ? "bg-blue-100" : "bg-emerald-100")}
                                           onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
                                         >
                                           <div className="flex items-center justify-between">
@@ -1031,12 +1115,12 @@ export default function App() {
                                             {sortOrder === 'asc' ? <ArrowUp size={12} className="text-emerald-600" /> : <ArrowDown size={12} className="text-emerald-600" />}
                                           </div>
                                         </th>
-                                        <th className="p-3 border-r border-slate-200">Utente</th>
-                                        <th className="p-3 border-r border-slate-200">Via</th>
-                                        <th className="p-3 border-r border-slate-200">Telefono</th>
-                                        <th className="p-3 border-r border-slate-200">Materiali</th>
-                                        <th className="p-3 border-r border-slate-200">Note</th>
-                                        <th className="p-3 w-10"></th>
+                                        <th className={cn("p-4 border-r border-slate-200 sticky top-[160px] z-[40] whitespace-nowrap", tipo === 'Ingombranti' ? "bg-blue-100" : "bg-emerald-100")}>Utente</th>
+                                        <th className={cn("p-4 border-r border-slate-200 sticky top-[160px] z-[40] whitespace-nowrap", tipo === 'Ingombranti' ? "bg-blue-100" : "bg-emerald-100")}>Via</th>
+                                        <th className={cn("p-4 border-r border-slate-200 sticky top-[160px] z-[40] whitespace-nowrap", tipo === 'Ingombranti' ? "bg-blue-100" : "bg-emerald-100")}>Telefono</th>
+                                        <th className={cn("p-4 border-r border-slate-200 sticky top-[160px] z-[40] whitespace-nowrap", tipo === 'Ingombranti' ? "bg-blue-100" : "bg-emerald-100")}>Materiali</th>
+                                        <th className={cn("p-4 border-r border-slate-200 sticky top-[160px] z-[40] whitespace-nowrap", tipo === 'Ingombranti' ? "bg-blue-100" : "bg-emerald-100")}>Note</th>
+                                        <th className={cn("p-4 w-12 sticky top-[160px] z-[40]", tipo === 'Ingombranti' ? "bg-blue-100" : "bg-emerald-100")}></th>
                                       </tr>
                                     </thead>
                                     <SortableContext 
@@ -1050,6 +1134,7 @@ export default function App() {
                                             p={p} 
                                             handleUpdateField={handleUpdateField} 
                                             handleDelete={handleDelete}
+                                            handleDuplicate={handleDuplicate}
                                             dateDisponibili={dateDisponibili}
                                           />
                                         ))}
@@ -1080,90 +1165,100 @@ export default function App() {
                 key="storico"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="space-y-6"
+                className="space-y-12"
               >
-                <div className="flex justify-between items-end">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 pb-8 border-b border-slate-200">
                   <div>
-                    <h2 className="text-3xl font-black tracking-tighter text-slate-900">Storico Prenotazioni</h2>
-                    <p className="text-slate-400 font-medium">Archivio dei ritiri completati. Puoi riordinare o spostare i record.</p>
+                    <h2 className="text-5xl font-black tracking-tighter text-slate-900 mb-2">Storico Prenotazioni</h2>
+                    <p className="text-lg text-slate-400 font-medium max-w-xl leading-snug">Archivio dei ritiri completati. Puoi riordinare o spostare i record.</p>
                   </div>
-                  <div className="flex gap-3">
-                    <div className="relative">
-                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                  <div className="flex flex-wrap items-center gap-4">
+                    <div className="relative group">
+                      <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" size={20} />
                       <input 
                         type="text"
                         placeholder="Cerca nello storico..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-12 pr-6 py-2 bg-white border border-slate-200 rounded-xl font-bold text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600/20 w-64"
+                        className="pl-14 pr-8 py-4 bg-white border-2 border-slate-100 rounded-3xl font-bold text-base focus:outline-none focus:border-emerald-500/30 focus:ring-4 focus:ring-emerald-500/5 transition-all w-80 shadow-sm"
                       />
                     </div>
                   </div>
                 </div>
 
-                <div className="space-y-12">
+                <div className="space-y-16">
                   <DndContext 
                     sensors={sensors}
                     collisionDetection={closestCenter}
                     onDragEnd={handleDragEnd}
                   >
                     {groupedPrenotazioni.map(([data, types]: [string, Record<TipologiaRifiuto, Prenotazione[]>]) => (
-                      <div key={data} className="space-y-6">
-                        <h3 className="text-2xl font-black tracking-tight flex items-center gap-3 text-slate-800 border-b border-slate-200 pb-3">
-                          <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center">
-                            <Calendar className="text-slate-500" size={20} />
-                          </div>
-                          Data Ritiro: {data}
-                        </h3>
+                      <div key={data} className="space-y-8">
+                        <div className="sticky top-0 z-[50] -mx-4 px-4 bg-slate-50">
+                          <h3 className="text-3xl font-black tracking-tight flex items-center gap-4 text-slate-800 bg-white p-6 rounded-[32px] shadow-lg border border-slate-100">
+                            <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center border border-slate-200">
+                              <Calendar className="text-slate-500" size={24} />
+                            </div>
+                            Data Ritiro: {data}
+                          </h3>
+                        </div>
                         
                         {(Object.entries(types) as [TipologiaRifiuto, Prenotazione[]][]).map(([tipo, list]) => (
                           list.length > 0 && (
-                            <div key={tipo} className="space-y-3">
-                              <div className="flex justify-between items-center">
-                                <h4 className={cn(
-                                  "text-xs font-black uppercase tracking-widest flex items-center gap-2",
-                                  tipo === 'Ingombranti' ? "text-blue-600" : "text-emerald-600"
-                                )}>
-                                  {tipo === 'Ingombranti' ? <LayoutDashboard size={14} /> : <Leaf size={14} />}
-                                  {tipo} • {list.length} record
-                                </h4>
-                                <button 
-                                  onClick={() => generaDocumentoWord(list, tipo, data)}
-                                  className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10"
-                                >
-                                  <Download size={12} /> Esporta Word
-                                </button>
+                            <div key={tipo} className="space-y-4">
+                              <div className="sticky top-[96px] z-[45] -mx-4 px-4 bg-slate-50">
+                                <div className="flex justify-between items-center bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-slate-100 shadow-sm">
+                                  <h4 className={cn(
+                                    "text-sm font-black uppercase tracking-widest flex items-center gap-3",
+                                    tipo === 'Ingombranti' ? "text-blue-600" : "text-emerald-600"
+                                  )}>
+                                    <div className={cn(
+                                      "w-8 h-8 rounded-lg flex items-center justify-center",
+                                      tipo === 'Ingombranti' ? "bg-blue-100" : "bg-emerald-100"
+                                    )}>
+                                      {tipo === 'Ingombranti' ? <LayoutDashboard size={18} /> : <Leaf size={18} />}
+                                    </div>
+                                    {tipo} • <span className="text-slate-400">{list.length} record</span>
+                                  </h4>
+                                  <button 
+                                    onClick={() => generaDocumentoWord(list, tipo, data)}
+                                    className="text-xs font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 flex items-center gap-2 transition-colors px-4 py-2 hover:bg-slate-50 rounded-xl"
+                                  >
+                                    <Download size={14} /> Export Lista
+                                  </button>
+                                </div>
                               </div>
 
                               <div className={cn(
-                                "overflow-x-auto rounded-[32px] border shadow-sm transition-all",
+                                "rounded-[32px] border shadow-sm transition-all",
                                 tipo === 'Ingombranti' ? "bg-blue-50/70 border-blue-200" : "bg-emerald-50/70 border-emerald-200"
                               )}>
-                                <table className="w-full text-left border-collapse">
-                                  <thead>
-                                    <tr className={cn(
-                                      "border-b border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-400",
-                                      tipo === 'Ingombranti' ? "bg-blue-100/80" : "bg-emerald-100/80"
-                                    )}>
-                                      <th className="p-3 w-8 border-r border-slate-200"></th>
-                                      <th className="p-3 border-r border-slate-200">Data Ritiro</th>
-                                      <th 
-                                        className="p-3 border-r border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors group"
-                                        onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-                                      >
-                                        <div className="flex items-center justify-between">
-                                          Data Prenotazione
-                                          {sortOrder === 'asc' ? <ArrowUp size={12} className="text-emerald-600" /> : <ArrowDown size={12} className="text-emerald-600" />}
-                                        </div>
-                                      </th>
-                                      <th className="p-3 border-r border-slate-200">Utente</th>
-                                      <th className="p-3 border-r border-slate-200">Via</th>
-                                      <th className="p-3 border-r border-slate-200">Telefono</th>
-                                      <th className="p-3 border-r border-slate-200">Materiali</th>
-                                      <th className="p-3 border-r border-slate-200">Note</th>
-                                      <th className="p-3 w-10"></th>
-                                    </tr>
-                                  </thead>
+                                <div className="rounded-[32px]">
+                                  <table className="w-full text-left border-collapse table-fixed md:table-auto">
+                                    <thead className="sticky top-[160px] z-[40]">
+                                      <tr className={cn(
+                                        "border-b border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-400 shadow-md",
+                                        tipo === 'Ingombranti' ? "bg-blue-100" : "bg-emerald-100"
+                                      )}>
+                                        <th className={cn("p-4 w-12 border-r border-slate-200 sticky top-[160px] z-[40]", tipo === 'Ingombranti' ? "bg-blue-100" : "bg-emerald-100")}></th>
+                                        <th className={cn("p-4 border-r border-slate-200 sticky top-[160px] z-[40] whitespace-nowrap", tipo === 'Ingombranti' ? "bg-blue-100" : "bg-emerald-100")}>Data Ritiro</th>
+                                        <th 
+                                          className={cn("p-4 border-r border-slate-200 cursor-pointer hover:bg-slate-200 transition-colors group sticky top-[160px] z-[40] whitespace-nowrap", tipo === 'Ingombranti' ? "bg-blue-100" : "bg-emerald-100")}
+                                          onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                                        >
+                                          <div className="flex items-center justify-between">
+                                            Data Prenotazione
+                                            {sortOrder === 'asc' ? <ArrowUp size={12} className="text-emerald-600" /> : <ArrowDown size={12} className="text-emerald-600" />}
+                                          </div>
+                                        </th>
+                                        <th className={cn("p-4 border-r border-slate-200 sticky top-[160px] z-[40] whitespace-nowrap", tipo === 'Ingombranti' ? "bg-blue-100" : "bg-emerald-100")}>Utente</th>
+                                        <th className={cn("p-4 border-r border-slate-200 sticky top-[160px] z-[40] whitespace-nowrap", tipo === 'Ingombranti' ? "bg-blue-100" : "bg-emerald-100")}>Via</th>
+                                        <th className={cn("p-4 border-r border-slate-200 sticky top-[160px] z-[40] whitespace-nowrap", tipo === 'Ingombranti' ? "bg-blue-100" : "bg-emerald-100")}>Telefono</th>
+                                        <th className={cn("p-4 border-r border-slate-200 sticky top-[160px] z-[40] whitespace-nowrap", tipo === 'Ingombranti' ? "bg-blue-100" : "bg-emerald-100")}>Materiali</th>
+                                        <th className={cn("p-4 border-r border-slate-200 sticky top-[160px] z-[40] whitespace-nowrap", tipo === 'Ingombranti' ? "bg-blue-100" : "bg-emerald-100")}>Note</th>
+                                        <th className={cn("p-4 w-12 sticky top-[160px] z-[40]", tipo === 'Ingombranti' ? "bg-blue-100" : "bg-emerald-100")}></th>
+                                      </tr>
+                                    </thead>
                                   <tbody>
                                     <SortableContext 
                                       items={list.map(p => p.id)}
@@ -1175,6 +1270,7 @@ export default function App() {
                                           p={p} 
                                           handleUpdateField={handleUpdateField}
                                           handleDelete={handleDelete}
+                                          handleDuplicate={handleDuplicate}
                                           dateDisponibili={dateDisponibili}
                                         />
                                       ))}
@@ -1183,11 +1279,12 @@ export default function App() {
                                 </table>
                               </div>
                             </div>
-                          )
-                        ))}
-                      </div>
-                    ))}
-                  </DndContext>
+                          </div>
+                        )
+                      ))}
+                    </div>
+                  ))}
+                </DndContext>
 
                   {groupedPrenotazioni.length === 0 && (
                     <div className={cn(
@@ -1651,6 +1748,7 @@ interface SortableRowProps {
   p: Prenotazione;
   handleUpdateField: (id: string, field: keyof Prenotazione, value: any) => void;
   handleDelete: (id: string) => void;
+  handleDuplicate: (p: Prenotazione) => void;
   dateDisponibili: string[];
 }
 
@@ -1658,6 +1756,7 @@ const SortableRow: React.FC<SortableRowProps> = ({
   p, 
   handleUpdateField, 
   handleDelete, 
+  handleDuplicate,
   dateDisponibili 
 }) => {
   const [localData, setLocalData] = useState({
@@ -1804,13 +1903,23 @@ const SortableRow: React.FC<SortableRowProps> = ({
           />
         </div>
       </td>
-      <td className="p-0 text-center w-10">
-        <button 
-          onClick={() => handleDelete(p.id)}
-          className="p-2 text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-        >
-          <Trash2 size={14} />
-        </button>
+      <td className="p-0 text-center w-20">
+        <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button 
+            onClick={() => handleDuplicate(p)}
+            title="Duplica"
+            className="p-2 text-slate-300 hover:text-blue-500 transition-colors"
+          >
+            <Copy size={14} />
+          </button>
+          <button 
+            onClick={() => handleDelete(p.id)}
+            title="Elimina"
+            className="p-2 text-slate-300 hover:text-red-500 transition-colors"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
       </td>
     </tr>
   );
@@ -1839,20 +1948,62 @@ function StatCard({ title, value, icon, color }: { title: string, value: string,
   );
 }
 
-function InputGroup({ label, value, onChange, placeholder, required, type = "text" }: { label: string, value: string, onChange: (v: string) => void, placeholder: string, required?: boolean, type?: string }) {
+function InputGroup({ 
+  label, 
+  value, 
+  onChange, 
+  placeholder, 
+  required, 
+  type = "text",
+  suggestions = []
+}: { 
+  label: string, 
+  value: string, 
+  onChange: (v: string) => void, 
+  placeholder: string, 
+  required?: boolean, 
+  type?: string,
+  suggestions?: { value: string, subtext?: string, onSelect: () => void }[]
+}) {
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 relative">
       <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">{label}</label>
       <input 
         type={type}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => {
+          onChange(e.target.value);
+          setShowSuggestions(true);
+        }}
+        onFocus={() => setShowSuggestions(true)}
+        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
         placeholder={placeholder}
         required={required}
         className={cn(
           "w-full p-3.5 rounded-2xl border focus:outline-none focus:ring-2 focus:ring-emerald-600/20 transition-all bg-slate-50 border-slate-200 text-slate-700 placeholder:text-slate-300 font-medium"
         )}
       />
+      {showSuggestions && suggestions.length > 0 && (
+        <div className="absolute z-50 w-full bg-white border border-slate-200 rounded-2xl shadow-2xl mt-1 max-h-48 overflow-y-auto overflow-x-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+          {suggestions.map((s, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                s.onSelect();
+                setShowSuggestions(false);
+              }}
+              className="w-full text-left p-3 hover:bg-slate-50 flex flex-col transition-colors border-b last:border-0 border-slate-100"
+            >
+              <span className="font-bold text-sm text-slate-800">{s.value}</span>
+              {s.subtext && <span className="text-[10px] text-slate-400 font-medium">{s.subtext}</span>}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
